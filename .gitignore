@@ -46,7 +46,7 @@ app.*.map.json
 CLAUDE.md
 AGENTS.md
 /copilot
-
+.github
 # Variables de entorno Flutter (nunca subir al repo)
 app/.env
 app/.env.production

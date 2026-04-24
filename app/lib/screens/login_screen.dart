@@ -203,7 +203,7 @@ class _LoginScreenState extends State<LoginScreen> {
             padding: EdgeInsets.fromLTRB(24, 16, 24, 16 + MediaQuery.of(context).padding.bottom),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: ['🎂 Registra', '📅 Recuerda', '🎁 Celebra']
+              children: ['Registra', 'Recuerda', 'Celebra']
                   .map((t) => Text(t,
                       style: GoogleFonts.poppins(
                           color: Colors.white.withOpacity(0.85), fontSize: 12, fontWeight: FontWeight.w500)))
