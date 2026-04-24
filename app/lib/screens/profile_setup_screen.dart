@@ -8,17 +8,42 @@ import '../models/birthday.dart';
 import '../models/user_session.dart';
 import 'home_screen.dart';
 
+class _InterestOption {
+  const _InterestOption(this.label, this.icon);
+  final String label;
+  final IconData icon;
+}
+
+class _GenderOption {
+  const _GenderOption(this.value, this.label, this.icon);
+  final String value;
+  final String label;
+  final IconData icon;
+}
+
 const _interests = [
-  '🎮 Gaming', '🎵 Música', '📚 Lectura', '🏋️ Deporte',
-  '🍕 Gastronomía', '🎨 Arte', '✈️ Viajes', '🎬 Cine',
-  '🐾 Animales', '🌿 Naturaleza', '💻 Tecnología', '📸 Fotografía',
-  '🧩 Puzzles', '🍷 Vinos', '🎲 Juegos', '🛍️ Moda',
+  _InterestOption('Gaming', Icons.sports_esports_rounded),
+  _InterestOption('Música', Icons.music_note_rounded),
+  _InterestOption('Lectura', Icons.menu_book_rounded),
+  _InterestOption('Deporte', Icons.fitness_center_rounded),
+  _InterestOption('Gastronomía', Icons.restaurant_rounded),
+  _InterestOption('Arte', Icons.palette_rounded),
+  _InterestOption('Viajes', Icons.flight_rounded),
+  _InterestOption('Cine', Icons.movie_rounded),
+  _InterestOption('Animales', Icons.pets_rounded),
+  _InterestOption('Naturaleza', Icons.eco_rounded),
+  _InterestOption('Tecnología', Icons.devices_rounded),
+  _InterestOption('Fotografía', Icons.photo_camera_rounded),
+  _InterestOption('Puzzles', Icons.extension_rounded),
+  _InterestOption('Vinos', Icons.wine_bar_rounded),
+  _InterestOption('Juegos', Icons.toys_rounded),
+  _InterestOption('Moda', Icons.checkroom_rounded),
 ];
 
 const _genders = [
-  ('hombre', '👨 Hombre'),
-  ('mujer', '👩 Mujer'),
-  ('otro', '🌈 Otro'),
+  _GenderOption('hombre', 'Hombre', Icons.male_rounded),
+  _GenderOption('mujer', 'Mujer', Icons.female_rounded),
+  _GenderOption('otro', 'Otro', Icons.diversity_3_rounded),
 ];
 
 class ProfileSetupScreen extends StatefulWidget {
@@ -90,7 +115,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
         notes: notes,
         isSelf: true,
         createdAt: DateTime.now().toIso8601String(),
-      ));
+      ), ownerUserId: widget.session.laravelUserId);
 
       // 3. Marcar perfil completo en sesión local
       final updated = widget.session.copyWith(profileCompleted: true);
@@ -128,7 +153,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
             ),
             padding: EdgeInsets.fromLTRB(20, MediaQuery.of(context).padding.top + 20, 20, 28),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('¡Hola, ${widget.session.name.split(' ').first}! 👋',
+              Text('¡Hola, ${widget.session.name.split(' ').first}!',
                   style: GoogleFonts.poppins(color: Colors.white.withOpacity(0.8), fontSize: 14)),
               const SizedBox(height: 4),
               Text('Cuéntanos sobre ti',
@@ -175,23 +200,38 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                   Row(
                     children: _genders.map((g) => Expanded(
                       child: GestureDetector(
-                        onTap: () => setState(() => _gender = _gender == g.$1 ? null : g.$1),
+                        onTap: () => setState(() => _gender = _gender == g.value ? null : g.value),
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 150),
-                          margin: EdgeInsets.only(right: g.$1 != 'otro' ? 8 : 0),
+                          margin: EdgeInsets.only(right: g.value != 'otro' ? 8 : 0),
                           padding: const EdgeInsets.symmetric(vertical: 11),
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
-                              color: _gender == g.$1 ? AppColors.blue : AppColors.border,
+                              color: _gender == g.value ? AppColors.blue : AppColors.border,
                               width: 2),
-                            color: _gender == g.$1 ? AppColors.blueLight : AppColors.bg,
+                            color: _gender == g.value ? AppColors.blueLight : AppColors.bg,
                           ),
-                          child: Text(g.$2,
-                              textAlign: TextAlign.center,
-                              style: GoogleFonts.poppins(
-                                fontSize: 11, fontWeight: FontWeight.w600,
-                                color: _gender == g.$1 ? AppColors.blue : AppColors.fg2)),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                g.icon,
+                                size: 15,
+                                color: _gender == g.value ? AppColors.blue : AppColors.fg2,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                g.label,
+                                textAlign: TextAlign.center,
+                                style: GoogleFonts.poppins(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: _gender == g.value ? AppColors.blue : AppColors.fg2,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     )).toList(),
@@ -204,10 +244,12 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                   Wrap(
                     spacing: 8, runSpacing: 8,
                     children: _interests.map((interest) {
-                      final selected = _selectedInterests.contains(interest);
+                      final selected = _selectedInterests.contains(interest.label);
                       return GestureDetector(
                         onTap: () => setState(() {
-                          selected ? _selectedInterests.remove(interest) : _selectedInterests.add(interest);
+                          selected
+                              ? _selectedInterests.remove(interest.label)
+                              : _selectedInterests.add(interest.label);
                         }),
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 150),
@@ -218,10 +260,25 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                               color: selected ? AppColors.blue : AppColors.border, width: 2),
                             color: selected ? AppColors.blue : AppColors.white,
                           ),
-                          child: Text(interest,
-                              style: GoogleFonts.poppins(
-                                fontSize: 12, fontWeight: FontWeight.w500,
-                                color: selected ? Colors.white : AppColors.fg2)),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                interest.icon,
+                                size: 14,
+                                color: selected ? Colors.white : AppColors.fg2,
+                              ),
+                              const SizedBox(width: 5),
+                              Text(
+                                interest.label,
+                                style: GoogleFonts.poppins(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                  color: selected ? Colors.white : AppColors.fg2,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       );
                     }).toList(),
@@ -254,24 +311,36 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                   const SizedBox(height: 28),
 
                   // Botón guardar
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: _loading ? null : _save,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.blue,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(99)),
-                        elevation: 0,
-                      ),
-                      child: _loading
-                          ? const SizedBox(width: 22, height: 22,
-                              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3))
-                          : Text('🎂 Guardar mi cumpleaños',
-                              style: GoogleFonts.poppins(
-                                  color: Colors.white, fontSize: 15, fontWeight: FontWeight.w700)),
-                    ),
-                  ),
+                   SizedBox(
+                     width: double.infinity,
+                     child: ElevatedButton.icon(
+                       onPressed: _loading ? null : _save,
+                       icon: _loading
+                           ? const SizedBox(
+                               width: 18,
+                               height: 18,
+                               child: CircularProgressIndicator(
+                                 color: Colors.white,
+                                 strokeWidth: 2.5,
+                               ),
+                             )
+                           : const Icon(Icons.cake_rounded, color: Colors.white, size: 18),
+                       style: ElevatedButton.styleFrom(
+                         backgroundColor: AppColors.blue,
+                         padding: const EdgeInsets.symmetric(vertical: 16),
+                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(99)),
+                         elevation: 0,
+                       ),
+                       label: Text(
+                         _loading ? 'Guardando...' : 'Guardar mi cumpleaños',
+                         style: GoogleFonts.poppins(
+                           color: Colors.white,
+                           fontSize: 15,
+                           fontWeight: FontWeight.w700,
+                         ),
+                       ),
+                     ),
+                   ),
                   const SizedBox(height: 16),
                 ],
               ),

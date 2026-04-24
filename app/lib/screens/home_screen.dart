@@ -19,10 +19,27 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _tab = 0;
+  int _homeReloadKey = 0;
 
   void _onApiError(Object e) {
     if (e is ApiException && e.isUnauthorized) {
       handleUnauthorized();
+    }
+  }
+
+  Future<void> _openAddBirthdayForm() async {
+    final created = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _AddBirthdaySheet(session: widget.session, onApiError: _onApiError),
+    );
+
+    if (created == true && mounted) {
+      setState(() {
+        _tab = 0;
+        _homeReloadKey++;
+      });
     }
   }
 
@@ -33,7 +50,11 @@ class _HomeScreenState extends State<HomeScreen> {
       body: IndexedStack(
         index: _tab,
         children: [
-          _HomeTab(session: widget.session, onApiError: _onApiError),
+          _HomeTab(
+            key: ValueKey(_homeReloadKey),
+            session: widget.session,
+            onApiError: _onApiError,
+          ),
           _CalendarTab(),
           _StatsTab(),
           _ProfileTab(session: widget.session, onApiError: _onApiError),
@@ -41,7 +62,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       bottomNavigationBar: _BottomNav(current: _tab, onTap: (i) => setState(() => _tab = i)),
       floatingActionButton: FloatingActionButton(
-        onPressed: () { /* TODO: formulario nuevo cumpleaños */ },
+        onPressed: _openAddBirthdayForm,
         backgroundColor: AppColors.blue,
         elevation: 6,
         shape: const CircleBorder(),
@@ -115,7 +136,7 @@ class _NavItem extends StatelessWidget {
 // ── Home Tab ─────────────────────────────────────────────────
 
 class _HomeTab extends StatefulWidget {
-  const _HomeTab({required this.session, required this.onApiError});
+  const _HomeTab({super.key, required this.session, required this.onApiError});
   final UserSession session;
   final void Function(Object) onApiError;
 
@@ -138,7 +159,9 @@ class _HomeTabState extends State<_HomeTab> {
 
   Future<void> _load() async {
     try {
-      final list = await DatabaseHelper.instance.getAllBirthdays();
+      final list = await DatabaseHelper.instance.getAllBirthdays(
+        ownerUserId: widget.session.laravelUserId,
+      );
       if (mounted) setState(() { _birthdays = list; _applyFilter(); _loading = false; });
     } catch (e) {
       widget.onApiError(e);
@@ -263,6 +286,539 @@ class _HomeTabState extends State<_HomeTab> {
     const dias = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
     const meses = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
     return '${dias[now.weekday % 7]}, ${now.day} ${meses[now.month - 1]}';
+  }
+}
+
+const _addBirthdayInterests = [
+  'Gaming',
+  'Música',
+  'Lectura',
+  'Deporte',
+  'Gastronomía',
+  'Arte',
+  'Viajes',
+  'Cine',
+  'Animales',
+  'Naturaleza',
+  'Tecnología',
+  'Fotografía',
+  'Puzzles',
+  'Vinos',
+  'Juegos',
+  'Moda',
+];
+
+class _AddBirthdaySheet extends StatefulWidget {
+  const _AddBirthdaySheet({required this.session, required this.onApiError});
+  final UserSession session;
+  final void Function(Object) onApiError;
+
+  @override
+  State<_AddBirthdaySheet> createState() => _AddBirthdaySheetState();
+}
+
+class _AddBirthdaySheetState extends State<_AddBirthdaySheet> {
+  final _nameCtrl = TextEditingController();
+  final _dayCtrl = TextEditingController();
+  final _monthCtrl = TextEditingController();
+  final _yearCtrl = TextEditingController();
+  final _notesCtrl = TextEditingController();
+
+  String? _gender;
+  final Set<String> _selectedInterests = {};
+  bool _loading = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    _dayCtrl.dispose();
+    _monthCtrl.dispose();
+    _yearCtrl.dispose();
+    _notesCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    final name = _nameCtrl.text.trim();
+    final day = int.tryParse(_dayCtrl.text.trim());
+    final month = int.tryParse(_monthCtrl.text.trim());
+    final year = _yearCtrl.text.trim().isEmpty ? null : int.tryParse(_yearCtrl.text.trim());
+    final notes = _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim();
+
+    if (name.isEmpty) {
+      setState(() => _error = 'El nombre es obligatorio');
+      return;
+    }
+
+    if (day == null || month == null || day < 1 || day > 31 || month < 1 || month > 12) {
+      setState(() => _error = 'Ingresa un día y mes válidos');
+      return;
+    }
+
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
+    try {
+      final interests = _selectedInterests.isEmpty ? null : _selectedInterests.join('||');
+
+      await ApiService.instance.createBirthday(
+        token: widget.session.laravelToken,
+        name: name,
+        birthDay: day,
+        birthMonth: month,
+        birthYear: year,
+        gender: _gender,
+        interests: interests,
+        notes: notes,
+      );
+
+      await DatabaseHelper.instance.insertBirthday(
+        Birthday(
+          name: name,
+          birthDay: day,
+          birthMonth: month,
+          birthYear: year,
+          gender: _gender,
+          interests: interests,
+          notes: notes,
+          createdAt: DateTime.now().toIso8601String(),
+        ),
+        ownerUserId: widget.session.laravelUserId,
+      );
+
+      if (mounted) Navigator.pop(context, true);
+    } on ApiException catch (e) {
+      if (e.isUnauthorized) {
+        widget.onApiError(e);
+        if (mounted) Navigator.pop(context, false);
+        return;
+      }
+      setState(() => _error = e.message);
+    } catch (e) {
+      setState(() => _error = e.toString().replaceAll('Exception: ', ''));
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final insets = MediaQuery.of(context).viewInsets.bottom;
+    return AnimatedPadding(
+      duration: const Duration(milliseconds: 160),
+      padding: EdgeInsets.only(bottom: insets),
+      child: Container(
+        constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.9),
+        decoration: const BoxDecoration(
+          color: AppColors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        child: SafeArea(
+          top: false,
+          child: Column(
+            children: [
+              const SizedBox(height: 10),
+              Container(
+                width: 48,
+                height: 5,
+                decoration: BoxDecoration(
+                  color: AppColors.border,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+              ),
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(18, 16, 18, 20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              'Nuevo cumpleaños',
+                              style: GoogleFonts.poppins(
+                                fontSize: 22,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.fg,
+                              ),
+                            ),
+                          ),
+                          IconButton(
+                            onPressed: () => Navigator.pop(context, false),
+                            icon: const Icon(Icons.close_rounded, color: AppColors.fg3),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      if (_error != null)
+                        Container(
+                          margin: const EdgeInsets.only(bottom: 14),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFEE2E2),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            _error!,
+                            style: GoogleFonts.poppins(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: const Color(0xFFDC2626),
+                            ),
+                          ),
+                        ),
+                      Text(
+                        'NOMBRE COMPLETO *',
+                        style: GoogleFonts.poppins(
+                          fontSize: 11,
+                          color: AppColors.fg2,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: .08,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: _nameCtrl,
+                        style: GoogleFonts.poppins(fontSize: 14, color: AppColors.fg),
+                        decoration: InputDecoration(
+                          hintText: 'Ej. Ana Rodríguez',
+                          hintStyle: GoogleFonts.poppins(fontSize: 14, color: AppColors.fg3),
+                          filled: true,
+                          fillColor: AppColors.bg,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(color: AppColors.border, width: 1.5),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(color: AppColors.border, width: 1.5),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(color: AppColors.blue, width: 2),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      Text(
+                        'GÉNERO',
+                        style: GoogleFonts.poppins(
+                          fontSize: 11,
+                          color: AppColors.fg2,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: .08,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          _GenderPill(
+                            label: 'Hombre',
+                            icon: Icons.male_rounded,
+                            selected: _gender == 'hombre',
+                            onTap: () => setState(() => _gender = _gender == 'hombre' ? null : 'hombre'),
+                          ),
+                          const SizedBox(width: 8),
+                          _GenderPill(
+                            label: 'Mujer',
+                            icon: Icons.female_rounded,
+                            selected: _gender == 'mujer',
+                            onTap: () => setState(() => _gender = _gender == 'mujer' ? null : 'mujer'),
+                          ),
+                          const SizedBox(width: 8),
+                          _GenderPill(
+                            label: 'Otro',
+                            icon: Icons.diversity_3_rounded,
+                            selected: _gender == 'otro',
+                            onTap: () => setState(() => _gender = _gender == 'otro' ? null : 'otro'),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+                      Text(
+                        'FECHA DE CUMPLEAÑOS *',
+                        style: GoogleFonts.poppins(
+                          fontSize: 11,
+                          color: AppColors.fg2,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: .08,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          _DateField(ctrl: _dayCtrl, hint: 'DD', label: 'Día', maxLength: 2),
+                          const SizedBox(width: 8),
+                          _DateField(ctrl: _monthCtrl, hint: 'MM', label: 'Mes', maxLength: 2),
+                          const SizedBox(width: 8),
+                          _DateField(ctrl: _yearCtrl, hint: 'AAAA', label: 'Año (opcional)', maxLength: 4, flex: 2),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+                      Text(
+                        'LE GUSTA...',
+                        style: GoogleFonts.poppins(
+                          fontSize: 11,
+                          color: AppColors.fg2,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: .08,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: _addBirthdayInterests.map((interest) {
+                          final selected = _selectedInterests.contains(interest);
+                          return _InterestChip(
+                            label: interest,
+                            selected: selected,
+                            onTap: () {
+                              setState(() {
+                                if (selected) {
+                                  _selectedInterests.remove(interest);
+                                } else {
+                                  _selectedInterests.add(interest);
+                                }
+                              });
+                            },
+                          );
+                        }).toList(),
+                      ),
+                      const SizedBox(height: 14),
+                      Text(
+                        'NOTAS',
+                        style: GoogleFonts.poppins(
+                          fontSize: 11,
+                          color: AppColors.fg2,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: .08,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: _notesCtrl,
+                        minLines: 2,
+                        maxLines: 4,
+                        style: GoogleFonts.poppins(fontSize: 14, color: AppColors.fg),
+                        decoration: InputDecoration(
+                          hintText: 'Ideas de regalo, datos especiales...',
+                          hintStyle: GoogleFonts.poppins(fontSize: 14, color: AppColors.fg3),
+                          filled: true,
+                          fillColor: AppColors.bg,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(color: AppColors.border, width: 1.5),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(color: AppColors.border, width: 1.5),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(color: AppColors.blue, width: 2),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: _loading ? null : _save,
+                          icon: _loading
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.5,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Icon(Icons.cake_rounded, color: Colors.white, size: 18),
+                          label: Text(
+                            _loading ? 'Registrando...' : 'Registrar',
+                            style: GoogleFonts.poppins(
+                              color: Colors.white,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.blue,
+                            padding: const EdgeInsets.symmetric(vertical: 15),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(99),
+                            ),
+                            elevation: 0,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _GenderPill extends StatelessWidget {
+  const _GenderPill({
+    required this.label,
+    required this.icon,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final IconData icon;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 140),
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            color: selected ? AppColors.blueLight : AppColors.bg,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: selected ? AppColors.blue : AppColors.border,
+              width: selected ? 2 : 1.5,
+            ),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 15, color: selected ? AppColors.blue : AppColors.fg2),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: GoogleFonts.poppins(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: selected ? AppColors.blue : AppColors.fg2,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DateField extends StatelessWidget {
+  const _DateField({
+    required this.ctrl,
+    required this.hint,
+    required this.label,
+    required this.maxLength,
+    this.flex = 1,
+  });
+
+  final TextEditingController ctrl;
+  final String hint;
+  final String label;
+  final int maxLength;
+  final int flex;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      flex: flex,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          TextField(
+            controller: ctrl,
+            keyboardType: TextInputType.number,
+            textAlign: TextAlign.center,
+            maxLength: maxLength,
+            style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.fg),
+            decoration: InputDecoration(
+              counterText: '',
+              hintText: hint,
+              hintStyle: GoogleFonts.poppins(fontSize: 15, color: AppColors.fg3),
+              filled: true,
+              fillColor: AppColors.bg,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: AppColors.border, width: 1.5),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: AppColors.border, width: 1.5),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: AppColors.blue, width: 2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            label,
+            style: GoogleFonts.poppins(
+              fontSize: 10,
+              color: AppColors.fg3,
+              fontWeight: FontWeight.w500,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InterestChip extends StatelessWidget {
+  const _InterestChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 120),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        decoration: BoxDecoration(
+          color: selected ? AppColors.blueLight : AppColors.white,
+          borderRadius: BorderRadius.circular(99),
+          border: Border.all(
+            color: selected ? AppColors.blue : AppColors.border,
+            width: selected ? 1.8 : 1.2,
+          ),
+        ),
+        child: Text(
+          label,
+          style: GoogleFonts.poppins(
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+            color: selected ? AppColors.blue : AppColors.fg2,
+          ),
+        ),
+      ),
+    );
   }
 }
 

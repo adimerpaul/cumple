@@ -17,7 +17,7 @@ class DatabaseHelper {
     final path = join(await getDatabasesPath(), 'cumple.db');
     return openDatabase(
       path,
-      version: 5,
+      version: 6,
       onCreate: (db, version) async {
         await _createBirthdaysTable(db);
         await _createUserSessionTable(db);
@@ -31,6 +31,7 @@ class DatabaseHelper {
             'INTEGER NOT NULL DEFAULT 0');
         await _ensureColumn(db, 'birthdays', 'is_self',
             'INTEGER NOT NULL DEFAULT 0');
+        await _ensureColumn(db, 'birthdays', 'owner_user_id', 'INTEGER');
       },
     );
   }
@@ -47,6 +48,7 @@ class DatabaseHelper {
   Future<void> _createBirthdaysTable(Database db) => db.execute('''
       CREATE TABLE birthdays (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
+        owner_user_id INTEGER NOT NULL,
         name TEXT NOT NULL,
         birth_day INTEGER NOT NULL,
         birth_month INTEGER NOT NULL,
@@ -76,30 +78,57 @@ class DatabaseHelper {
 
   // ── Birthdays ────────────────────────────────────────────
 
-  Future<int> insertBirthday(Birthday b) async =>
-      (await db).insert('birthdays', b.toMap());
+  Future<int> insertBirthday(
+    Birthday b, {
+    required int ownerUserId,
+  }) async {
+    final data = b.toMap()..['owner_user_id'] = ownerUserId;
+    return (await db).insert('birthdays', data);
+  }
 
-  Future<List<Birthday>> getAllBirthdays() async {
+  Future<List<Birthday>> getAllBirthdays({
+    required int ownerUserId,
+  }) async {
     final rows = await (await db).query(
       'birthdays',
+      where: 'owner_user_id = ?',
+      whereArgs: [ownerUserId],
       orderBy: 'is_self DESC, birth_month, birth_day',
     );
     return rows.map(Birthday.fromMap).toList();
   }
 
-  Future<Birthday?> getSelfBirthday() async {
+  Future<Birthday?> getSelfBirthday({
+    required int ownerUserId,
+  }) async {
     final rows = await (await db).query(
       'birthdays',
-      where: 'is_self = 1',
+      where: 'is_self = 1 AND owner_user_id = ?',
+      whereArgs: [ownerUserId],
       limit: 1,
     );
     if (rows.isEmpty) return null;
     return Birthday.fromMap(rows.first);
   }
 
-  Future<int> updateBirthday(Birthday b) async =>
-      (await db).update('birthdays', b.toMap(), where: 'id = ?', whereArgs: [b.id]);
+  Future<int> updateBirthday(
+    Birthday b, {
+    required int ownerUserId,
+  }) async =>
+      (await db).update(
+        'birthdays',
+        b.toMap(),
+        where: 'id = ? AND owner_user_id = ?',
+        whereArgs: [b.id, ownerUserId],
+      );
 
-  Future<int> deleteBirthday(int id) async =>
-      (await db).delete('birthdays', where: 'id = ?', whereArgs: [id]);
+  Future<int> deleteBirthday(
+    int id, {
+    required int ownerUserId,
+  }) async =>
+      (await db).delete(
+        'birthdays',
+        where: 'id = ? AND owner_user_id = ?',
+        whereArgs: [id, ownerUserId],
+      );
 }
