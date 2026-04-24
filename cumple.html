@@ -1,0 +1,1452 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cumpleaños App</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<style>
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    height: 100%; background: #0A1628;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Poppins', sans-serif;
+  }
+  #root { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; }
+
+  :root {
+    --blue: #2563FF;
+    --blue-dark: #1A47CC;
+    --blue-light: #E8EEFF;
+    --blue-mid: #4B7BFF;
+    --bg: #F4F6FF;
+    --white: #FFFFFF;
+    --fg: #1A1D3A;
+    --fg2: #6B7280;
+    --fg3: #9CA3AF;
+    --border: #E5E9F8;
+    --shadow: 0 4px 20px rgba(37,99,255,0.12);
+    --shadow-sm: 0 2px 10px rgba(0,0,0,0.06);
+    --r: 18px;
+    --r-sm: 12px;
+  }
+
+  ::-webkit-scrollbar { display: none; }
+
+  @keyframes fadeUp   { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:translateY(0)} }
+  @keyframes fadeIn   { from{opacity:0} to{opacity:1} }
+  @keyframes slideUp  { from{transform:translateY(100%)} to{transform:translateY(0)} }
+  @keyframes pulse    { 0%,100%{transform:scale(1)} 50%{transform:scale(1.06)} }
+  @keyframes popIn    { 0%{transform:scale(.8);opacity:0} 70%{transform:scale(1.05)} 100%{transform:scale(1);opacity:1} }
+
+  .fadeUp  { animation: fadeUp  0.4s cubic-bezier(.2,.8,.4,1) both; }
+  .fadeIn  { animation: fadeIn  0.25s ease both; }
+  .slideUp { animation: slideUp 0.38s cubic-bezier(.2,.8,.4,1) both; }
+  .popIn   { animation: popIn   0.35s cubic-bezier(.2,.8,.4,1) both; }
+
+  /* Overlay */
+  .overlay {
+    position: absolute; inset: 0;
+    background: rgba(10,22,40,0.45);
+    backdrop-filter: blur(10px);
+    z-index: 60; display: flex; align-items: flex-end;
+    animation: fadeIn .22s;
+    border-radius: 54px;
+  }
+  .sheet {
+    background: var(--white); border-radius: 28px 28px 0 0;
+    width: 100%; max-height: 90%; overflow-y: auto;
+    padding: 8px 0 40px;
+    animation: slideUp .34s cubic-bezier(.2,.8,.4,1);
+  }
+  .sheet-handle { width: 38px; height: 4px; border-radius: 99px; background: var(--border); margin: 8px auto 16px; }
+
+  /* Buttons */
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    padding: 14px 24px; border-radius: 99px; font-family: 'Poppins', sans-serif;
+    font-size: 14px; font-weight: 600; cursor: pointer; border: none;
+    transition: all .18s; user-select: none;
+  }
+  .btn:active { transform: scale(.95); }
+  .btn-primary { background: var(--blue); color: #fff; box-shadow: 0 6px 20px rgba(37,99,255,0.35); }
+  .btn-primary:hover { background: var(--blue-dark); }
+  .btn-outline { background: transparent; color: var(--blue); border: 2px solid var(--blue-light); }
+  .btn-ghost  { background: transparent; color: var(--fg2); border: none; padding: 8px 12px; }
+  .btn-sm     { padding: 9px 18px; font-size: 12px; }
+
+  /* Inputs */
+  .input-wrap { display: flex; flex-direction: column; gap: 6px; }
+  .input-label { font-size: 11px; font-weight: 600; color: var(--fg2); letter-spacing: .06em; text-transform: uppercase; }
+  .input {
+    width: 100%; padding: 13px 16px; border-radius: var(--r-sm);
+    border: 2px solid var(--border); background: var(--bg);
+    font-family: 'Poppins', sans-serif; font-size: 14px; color: var(--fg);
+    outline: none; transition: border-color .18s, box-shadow .18s;
+  }
+  .input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(37,99,255,.12); background: var(--white); }
+
+  /* Tags */
+  .tag {
+    display: inline-flex; align-items: center; gap: 4px; padding: 6px 12px;
+    border-radius: 99px; font-size: 12px; font-weight: 500; cursor: pointer;
+    border: 2px solid var(--border); background: var(--white); color: var(--fg2);
+    transition: all .14s; user-select: none; font-family: 'Poppins', sans-serif;
+  }
+  .tag.active { background: var(--blue); border-color: var(--blue); color: #fff; }
+
+  /* Gender btn */
+  .gender-btn {
+    flex: 1; padding: 11px 6px; border-radius: var(--r-sm); border: 2px solid var(--border);
+    background: var(--bg); cursor: pointer; text-align: center;
+    font-family: 'Poppins', sans-serif; font-size: 12px; font-weight: 600;
+    color: var(--fg2); transition: all .16s;
+  }
+  .gender-btn.active { border-color: var(--blue); background: var(--blue-light); color: var(--blue); }
+
+  /* Card */
+  .card {
+    background: var(--white); border-radius: var(--r);
+    box-shadow: var(--shadow-sm); overflow: hidden;
+    transition: transform .18s, box-shadow .18s; cursor: pointer;
+  }
+  .card:active { transform: scale(.98); }
+  .card.today { box-shadow: 0 4px 24px rgba(37,99,255,.2); }
+
+  /* Bottom nav */
+  .nav-item {
+    flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px;
+    padding: 10px 0; cursor: pointer; color: var(--fg3); font-size: 10px; font-weight: 600;
+    transition: color .18s;
+  }
+  .nav-item.active { color: var(--blue); }
+  .nav-fab {
+    width: 52px; height: 52px; border-radius: 50%; background: var(--blue);
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 6px 20px rgba(37,99,255,.4); cursor: pointer;
+    transition: transform .18s, box-shadow .18s; margin-top: -20px;
+    border: none;
+  }
+  .nav-fab:active { transform: scale(.9); }
+
+  /* Camera ring */
+  .cam-ring {
+    width: 92px; height: 92px; border-radius: 50%;
+    border: 3px dashed var(--border); background: var(--bg);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; overflow: hidden; position: relative; transition: border-color .18s;
+  }
+  .cam-ring:hover { border-color: var(--blue); border-style: solid; }
+  .cam-ring img { width: 100%; height: 100%; object-fit: cover; }
+
+  /* Countdown */
+  .countdown-pill {
+    display: flex; flex-direction: column; align-items: center;
+    background: var(--blue-light); color: var(--blue);
+    border-radius: var(--r-sm); padding: 8px 12px; min-width: 58px;
+  }
+  .countdown-pill.today { background: var(--blue); color: #fff; animation: pulse 1.6s ease-in-out infinite; }
+  .countdown-num { font-size: 20px; font-weight: 800; line-height: 1; }
+  .countdown-lbl { font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: .07em; margin-top: 1px; }
+
+  /* Tabs */
+  .tab-bar { display: flex; background: var(--bg); border-radius: 12px; padding: 4px; gap: 2px; }
+  .tab-btn {
+    flex: 1; padding: 8px 4px; border: none; background: transparent; cursor: pointer;
+    font-family: 'Poppins', sans-serif; font-size: 11px; font-weight: 600;
+    color: var(--fg3); border-radius: 9px; transition: all .18s;
+  }
+  .tab-btn.active { background: var(--white); color: var(--blue); box-shadow: var(--shadow-sm); }
+
+  /* Search */
+  .search-wrap { position: relative; }
+  .search-wrap svg { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--fg3); pointer-events: none; }
+  .search-wrap input { padding-left: 40px !important; border-radius: 99px !important; }
+
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useEffect, useRef } = React;
+
+// ── iOS Frame Components ─────────────────────────────────────
+
+// iOS.jsx — Simplified iOS 26 (Liquid Glass) device frame
+// Based on the iOS 26 UI Kit + Figma status bar spec. No assets, no deps.
+// Exports: IOSDevice, IOSStatusBar, IOSNavBar, IOSGlassPill, IOSList, IOSListRow, IOSKeyboard
+
+// ─────────────────────────────────────────────────────────────
+// Status bar
+// ─────────────────────────────────────────────────────────────
+function IOSStatusBar({ dark = false, time = '9:41' }) {
+  const c = dark ? '#fff' : '#000';
+  return (
+    <div style={{
+      display: 'flex', gap: 154, alignItems: 'center', justifyContent: 'center',
+      padding: '21px 24px 19px', boxSizing: 'border-box',
+      position: 'relative', zIndex: 20, width: '100%',
+    }}>
+      <div style={{ flex: 1, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', paddingTop: 1.5 }}>
+        <span style={{
+          fontFamily: '-apple-system, "SF Pro", system-ui', fontWeight: 590,
+          fontSize: 17, lineHeight: '22px', color: c,
+        }}>{time}</span>
+      </div>
+      <div style={{ flex: 1, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, paddingTop: 1, paddingRight: 1 }}>
+        <svg width="19" height="12" viewBox="0 0 19 12">
+          <rect x="0" y="7.5" width="3.2" height="4.5" rx="0.7" fill={c}/>
+          <rect x="4.8" y="5" width="3.2" height="7" rx="0.7" fill={c}/>
+          <rect x="9.6" y="2.5" width="3.2" height="9.5" rx="0.7" fill={c}/>
+          <rect x="14.4" y="0" width="3.2" height="12" rx="0.7" fill={c}/>
+        </svg>
+        <svg width="17" height="12" viewBox="0 0 17 12">
+          <path d="M8.5 3.2C10.8 3.2 12.9 4.1 14.4 5.6L15.5 4.5C13.7 2.7 11.2 1.5 8.5 1.5C5.8 1.5 3.3 2.7 1.5 4.5L2.6 5.6C4.1 4.1 6.2 3.2 8.5 3.2Z" fill={c}/>
+          <path d="M8.5 6.8C9.9 6.8 11.1 7.3 12 8.2L13.1 7.1C11.8 5.9 10.2 5.1 8.5 5.1C6.8 5.1 5.2 5.9 3.9 7.1L5 8.2C5.9 7.3 7.1 6.8 8.5 6.8Z" fill={c}/>
+          <circle cx="8.5" cy="10.5" r="1.5" fill={c}/>
+        </svg>
+        <svg width="27" height="13" viewBox="0 0 27 13">
+          <rect x="0.5" y="0.5" width="23" height="12" rx="3.5" stroke={c} strokeOpacity="0.35" fill="none"/>
+          <rect x="2" y="2" width="20" height="9" rx="2" fill={c}/>
+          <path d="M25 4.5V8.5C25.8 8.2 26.5 7.2 26.5 6.5C26.5 5.8 25.8 4.8 25 4.5Z" fill={c} fillOpacity="0.4"/>
+        </svg>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// Liquid glass pill — blur + tint + shine
+// ─────────────────────────────────────────────────────────────
+function IOSGlassPill({ children, dark = false, style = {} }) {
+  return (
+    <div style={{
+      height: 44, minWidth: 44, borderRadius: 9999,
+      position: 'relative', overflow: 'hidden',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      boxShadow: dark
+        ? '0 2px 6px rgba(0,0,0,0.35), 0 6px 16px rgba(0,0,0,0.2)'
+        : '0 1px 3px rgba(0,0,0,0.07), 0 3px 10px rgba(0,0,0,0.06)',
+      ...style,
+    }}>
+      {/* blur + tint */}
+      <div style={{
+        position: 'absolute', inset: 0, borderRadius: 9999,
+        backdropFilter: 'blur(12px) saturate(180%)',
+        WebkitBackdropFilter: 'blur(12px) saturate(180%)',
+        background: dark ? 'rgba(120,120,128,0.28)' : 'rgba(255,255,255,0.5)',
+      }} />
+      {/* shine */}
+      <div style={{
+        position: 'absolute', inset: 0, borderRadius: 9999,
+        boxShadow: dark
+          ? 'inset 1.5px 1.5px 1px rgba(255,255,255,0.15), inset -1px -1px 1px rgba(255,255,255,0.08)'
+          : 'inset 1.5px 1.5px 1px rgba(255,255,255,0.7), inset -1px -1px 1px rgba(255,255,255,0.4)',
+        border: dark ? '0.5px solid rgba(255,255,255,0.15)' : '0.5px solid rgba(0,0,0,0.06)',
+      }} />
+      <div style={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', padding: '0 4px' }}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// Navigation bar — glass pills + large title
+// ─────────────────────────────────────────────────────────────
+function IOSNavBar({ title = 'Title', dark = false, trailingIcon = true }) {
+  const muted = dark ? 'rgba(255,255,255,0.6)' : '#404040';
+  const text = dark ? '#fff' : '#000';
+  const pillIcon = (content) => (
+    <IOSGlassPill dark={dark}>
+      <div style={{ width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        {content}
+      </div>
+    </IOSGlassPill>
+  );
+  return (
+    <div style={{
+      display: 'flex', flexDirection: 'column', gap: 10,
+      paddingTop: 62, paddingBottom: 10, position: 'relative', zIndex: 5,
+    }}>
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '0 16px',
+      }}>
+        {/* back chevron */}
+        {pillIcon(
+          <svg width="12" height="20" viewBox="0 0 12 20" fill="none" style={{ marginLeft: -1 }}>
+            <path d="M10 2L2 10l8 8" stroke={muted} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        )}
+        {/* trailing ellipsis */}
+        {trailingIcon && pillIcon(
+          <svg width="22" height="6" viewBox="0 0 22 6">
+            <circle cx="3" cy="3" r="2.5" fill={muted}/>
+            <circle cx="11" cy="3" r="2.5" fill={muted}/>
+            <circle cx="19" cy="3" r="2.5" fill={muted}/>
+          </svg>
+        )}
+      </div>
+      {/* large title */}
+      <div style={{
+        padding: '0 16px',
+        fontFamily: '-apple-system, system-ui',
+        fontSize: 34, fontWeight: 700, lineHeight: '41px',
+        color: text, letterSpacing: 0.4,
+      }}>{title}</div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// Grouped list (inset card, r:26) + row (52px)
+// ─────────────────────────────────────────────────────────────
+function IOSListRow({ title, detail, icon, chevron = true, isLast = false, dark = false }) {
+  const text = dark ? '#fff' : '#000';
+  const sec = dark ? 'rgba(235,235,245,0.6)' : 'rgba(60,60,67,0.6)';
+  const ter = dark ? 'rgba(235,235,245,0.3)' : 'rgba(60,60,67,0.3)';
+  const sep = dark ? 'rgba(84,84,88,0.65)' : 'rgba(60,60,67,0.12)';
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', minHeight: 52,
+      padding: '0 16px', position: 'relative',
+      fontFamily: '-apple-system, system-ui', fontSize: 17,
+      letterSpacing: -0.43,
+    }}>
+      {icon && (
+        <div style={{
+          width: 30, height: 30, borderRadius: 7, background: icon,
+          marginRight: 12, flexShrink: 0,
+        }} />
+      )}
+      <div style={{ flex: 1, color: text }}>{title}</div>
+      {detail && <span style={{ color: sec, marginRight: 6 }}>{detail}</span>}
+      {chevron && (
+        <svg width="8" height="14" viewBox="0 0 8 14" style={{ flexShrink: 0 }}>
+          <path d="M1 1l6 6-6 6" stroke={ter} strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      )}
+      {!isLast && (
+        <div style={{
+          position: 'absolute', bottom: 0, right: 0,
+          left: icon ? 58 : 16, height: 0.5, background: sep,
+        }} />
+      )}
+    </div>
+  );
+}
+
+function IOSList({ header, children, dark = false }) {
+  const hc = dark ? 'rgba(235,235,245,0.6)' : 'rgba(60,60,67,0.6)';
+  const bg = dark ? '#1C1C1E' : '#fff';
+  return (
+    <div>
+      {header && (
+        <div style={{
+          fontFamily: '-apple-system, system-ui', fontSize: 13,
+          color: hc, textTransform: 'uppercase',
+          padding: '8px 36px 6px', letterSpacing: -0.08,
+        }}>{header}</div>
+      )}
+      <div style={{
+        background: bg, borderRadius: 26,
+        margin: '0 16px', overflow: 'hidden',
+      }}>{children}</div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// Device frame
+// ─────────────────────────────────────────────────────────────
+function IOSDevice({
+  children, width = 402, height = 874, dark = false,
+  title, keyboard = false,
+}) {
+  return (
+    <div style={{
+      width, height, borderRadius: 48, overflow: 'hidden',
+      position: 'relative', background: dark ? '#000' : '#F2F2F7',
+      boxShadow: '0 40px 80px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.12)',
+      fontFamily: '-apple-system, system-ui, sans-serif',
+      WebkitFontSmoothing: 'antialiased',
+    }}>
+      {/* dynamic island */}
+      <div style={{
+        position: 'absolute', top: 11, left: '50%', transform: 'translateX(-50%)',
+        width: 126, height: 37, borderRadius: 24, background: '#000', zIndex: 50,
+      }} />
+      {/* status bar (absolute) */}
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10 }}>
+        <IOSStatusBar dark={dark} />
+      </div>
+      {/* nav + content */}
+      <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+        {title !== undefined && <IOSNavBar title={title} dark={dark} />}
+        <div style={{ flex: 1, overflow: 'auto' }}>{children}</div>
+        {keyboard && <IOSKeyboard dark={dark} />}
+      </div>
+      {/* home indicator — always on top */}
+      <div style={{
+        position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 60,
+        height: 34, display: 'flex', justifyContent: 'center', alignItems: 'flex-end',
+        paddingBottom: 8, pointerEvents: 'none',
+      }}>
+        <div style={{
+          width: 139, height: 5, borderRadius: 100,
+          background: dark ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.25)',
+        }} />
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// Keyboard — iOS 26 liquid glass
+// ─────────────────────────────────────────────────────────────
+function IOSKeyboard({ dark = false }) {
+  const glyph = dark ? 'rgba(255,255,255,0.7)' : '#595959';
+  const sugg = dark ? 'rgba(255,255,255,0.6)' : '#333';
+  const keyBg = dark ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.85)';
+
+  // special-key icons
+  const icons = {
+    shift: <svg width="19" height="17" viewBox="0 0 19 17"><path d="M9.5 1L1 9.5h4.5V16h8V9.5H18L9.5 1z" fill={glyph}/></svg>,
+    del: <svg width="23" height="17" viewBox="0 0 23 17"><path d="M7 1h13a2 2 0 012 2v11a2 2 0 01-2 2H7l-6-7.5L7 1z" fill="none" stroke={glyph} strokeWidth="1.6" strokeLinejoin="round"/><path d="M10 5l7 7M17 5l-7 7" stroke={glyph} strokeWidth="1.6" strokeLinecap="round"/></svg>,
+    ret: <svg width="20" height="14" viewBox="0 0 20 14"><path d="M18 1v6H4m0 0l4-4M4 7l4 4" fill="none" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+  };
+
+  const key = (content, { w, flex, ret, fs = 25, k } = {}) => (
+    <div key={k} style={{
+      height: 42, borderRadius: 8.5,
+      flex: flex ? 1 : undefined, width: w, minWidth: 0,
+      background: ret ? '#08f' : keyBg,
+      boxShadow: '0 1px 0 rgba(0,0,0,0.075)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      fontFamily: '-apple-system, "SF Compact", system-ui',
+      fontSize: fs, fontWeight: 458, color: ret ? '#fff' : glyph,
+    }}>{content}</div>
+  );
+
+  const row = (keys, pad = 0) => (
+    <div style={{ display: 'flex', gap: 6.5, justifyContent: 'center', padding: `0 ${pad}px` }}>
+      {keys.map(l => key(l, { flex: true, k: l }))}
+    </div>
+  );
+
+  return (
+    <div style={{
+      position: 'relative', zIndex: 15, borderRadius: 27, overflow: 'hidden',
+      padding: '11px 0 2px',
+      display: 'flex', flexDirection: 'column', alignItems: 'center',
+      boxShadow: dark
+        ? '0 -2px 20px rgba(0,0,0,0.09)'
+        : '0 -1px 6px rgba(0,0,0,0.018), 0 -3px 20px rgba(0,0,0,0.012)',
+    }}>
+      {/* liquid glass bg — same recipe as nav pills */}
+      <div style={{
+        position: 'absolute', inset: 0, borderRadius: 27,
+        backdropFilter: 'blur(12px) saturate(180%)',
+        WebkitBackdropFilter: 'blur(12px) saturate(180%)',
+        background: dark ? 'rgba(120,120,128,0.14)' : 'rgba(255,255,255,0.25)',
+      }} />
+      <div style={{
+        position: 'absolute', inset: 0, borderRadius: 27,
+        boxShadow: dark
+          ? 'inset 1.5px 1.5px 1px rgba(255,255,255,0.15)'
+          : 'inset 1.5px 1.5px 1px rgba(255,255,255,0.7), inset -1px -1px 1px rgba(255,255,255,0.4)',
+        border: dark ? '0.5px solid rgba(255,255,255,0.15)' : '0.5px solid rgba(0,0,0,0.06)',
+        pointerEvents: 'none',
+      }} />
+
+      {/* autocorrect bar */}
+      <div style={{
+        display: 'flex', gap: 20, alignItems: 'center',
+        padding: '8px 22px 13px', width: '100%', boxSizing: 'border-box',
+        position: 'relative',
+      }}>
+        {['"The"', 'the', 'to'].map((w, i) => (
+          <React.Fragment key={i}>
+            {i > 0 && <div style={{ width: 1, height: 25, background: '#ccc', opacity: 0.3 }} />}
+            <div style={{
+              flex: 1, textAlign: 'center',
+              fontFamily: '-apple-system, system-ui', fontSize: 17,
+              color: sugg, letterSpacing: -0.43, lineHeight: '22px',
+            }}>{w}</div>
+          </React.Fragment>
+        ))}
+      </div>
+
+      {/* key layout */}
+      <div style={{
+        display: 'flex', flexDirection: 'column', gap: 13,
+        padding: '0 6.5px', width: '100%', boxSizing: 'border-box',
+        position: 'relative',
+      }}>
+        {row(['q','w','e','r','t','y','u','i','o','p'])}
+        {row(['a','s','d','f','g','h','j','k','l'], 20)}
+        <div style={{ display: 'flex', gap: 14.25, alignItems: 'center' }}>
+          {key(icons.shift, { w: 45, k: 'shift' })}
+          <div style={{ display: 'flex', gap: 6.5, flex: 1 }}>
+            {['z','x','c','v','b','n','m'].map(l => key(l, { flex: true, k: l }))}
+          </div>
+          {key(icons.del, { w: 45, k: 'del' })}
+        </div>
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          {key('ABC', { w: 92.25, fs: 18, k: 'abc' })}
+          {key('', { flex: true, k: 'space' })}
+          {key(icons.ret, { w: 92.25, ret: true, k: 'ret' })}
+        </div>
+      </div>
+
+      {/* bottom spacer (emoji+mic area, icons omitted) */}
+      <div style={{ height: 56, width: '100%', position: 'relative' }} />
+    </div>
+  );
+}
+
+
+// ── App ──────────────────────────────────────────────────────
+
+// ── Data ────────────────────────────────────────────────────
+function getDaysUntil(m, d) {
+  const today = new Date();
+  const flat = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  let next = new Date(today.getFullYear(), m - 1, d);
+  if (next < flat) next = new Date(today.getFullYear() + 1, m - 1, d);
+  return Math.ceil((next - flat) / 86400000);
+}
+function getNextAge(year, month, day) {
+  if (!year) return null;
+  const t = new Date();
+  let age = t.getFullYear() - year;
+  const hasPassed = t.getMonth()+1 > month || (t.getMonth()+1===month && t.getDate()>=day);
+  if (!hasPassed) age--;
+  return age + 1;
+}
+function fmtDate(m, d, y) {
+  const ms = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  return `${d} ${ms[m-1]}${y ? ' ' + y : ''}`;
+}
+
+const INTERESTS = ['🎮 Gaming','🎵 Música','📚 Lectura','🏋️ Deporte','🍕 Gastronomía','🎨 Arte','✈️ Viajes','🎬 Cine','🐾 Animales','🌿 Naturaleza','💻 Tecnología','📸 Fotografía','🧩 Puzzles','🍷 Vinos','🎲 Juegos','🛍️ Moda'];
+const GENDERS = [{value:'hombre',label:'👨 Hombre'},{value:'mujer',label:'👩 Mujer'},{value:'otro',label:'🌈 Otro'}];
+const SAMPLE = [
+  {id:1,name:'María García',birthMonth:4,birthDay:30,birthYear:1992,gender:'mujer',photo:null,interests:['🎵 Música','🎨 Arte','✈️ Viajes'],notes:'Le encantan las flores rosas.'},
+  {id:2,name:'Carlos Mendez',birthMonth:6,birthDay:15,birthYear:1988,gender:'hombre',photo:null,interests:['🎮 Gaming','💻 Tecnología'],notes:''},
+  {id:3,name:'Sofía Ruiz',birthMonth:12,birthDay:3,birthYear:1995,gender:'mujer',photo:null,interests:['📚 Lectura','🐾 Animales'],notes:'Alérgica al gluten.'},
+];
+
+// ── Icons ───────────────────────────────────────────────────
+const Icon = {
+  cam: (s=20,c='currentColor') => (
+    <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>
+    </svg>
+  ),
+  search: () => (
+    <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+      <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+    </svg>
+  ),
+  plus: (s=20,c='#fff') => (
+    <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2.8" strokeLinecap="round">
+      <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+    </svg>
+  ),
+  home: (active) => (
+    <svg width={22} height={22} viewBox="0 0 24 24" fill={active?'#2563FF':'none'} stroke={active?'#2563FF':'#9CA3AF'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 9.5L12 3l9 6.5V21a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5z"/>
+      <polyline points="9 22 9 12 15 12 15 22"/>
+    </svg>
+  ),
+  calendar: (active) => (
+    <svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke={active?'#2563FF':'#9CA3AF'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+    </svg>
+  ),
+  bell: (active) => (
+    <svg width={22} height={22} viewBox="0 0 24 24" fill={active?'#2563FF':'none'} stroke={active?'#2563FF':'#9CA3AF'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+    </svg>
+  ),
+  user: (active) => (
+    <svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke={active?'#2563FF':'#9CA3AF'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+    </svg>
+  ),
+  edit: () => (
+    <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+    </svg>
+  ),
+  trash: () => (
+    <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+    </svg>
+  ),
+  gallery: () => (
+    <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
+    </svg>
+  ),
+};
+
+// ── Avatar ──────────────────────────────────────────────────
+function Avatar({ person, size = 48 }) {
+  if (person.photo) {
+    return <img src={person.photo} style={{width:size,height:size,borderRadius:'50%',objectFit:'cover',flexShrink:0}} alt="" />;
+  }
+  const initials = person.name.split(' ').map(w=>w[0]).slice(0,2).join('');
+  const hue = (person.name.charCodeAt(0)*41 + (person.name.charCodeAt(1)||0)*17) % 360;
+  const colors = [
+    ['#2563FF','#60A5FA'],['#7C3AED','#A78BFA'],['#059669','#34D399'],
+    ['#DC2626','#F87171'],['#D97706','#FCD34D'],['#0891B2','#67E8F9'],
+  ];
+  const [a,b] = colors[Math.floor((hue/360)*colors.length)];
+  return (
+    <div style={{width:size,height:size,borderRadius:'50%',flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',fontSize:size*0.36,fontWeight:700,color:'#fff',background:`linear-gradient(135deg,${a},${b})`}}>
+      {initials}
+    </div>
+  );
+}
+
+// ── Camera Sheet ────────────────────────────────────────────
+function CameraSheet({ onCapture, onClose, currentPhoto }) {
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+  const fileRef = useRef(null);
+  const [stream, setStream] = useState(null);
+  const [camErr, setCamErr] = useState(false);
+  const [captured, setCaptured] = useState(currentPhoto || null);
+  const [mode, setMode] = useState('options');
+
+  const startCam = async () => {
+    try {
+      const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
+      setStream(s); setMode('camera');
+      setTimeout(() => { if (videoRef.current) videoRef.current.srcObject = s; }, 80);
+    } catch { setCamErr(true); setMode('camera'); }
+  };
+  const stopCam = () => { if (stream) stream.getTracks().forEach(t => t.stop()); setStream(null); };
+  const snap = () => {
+    if (!videoRef.current || !canvasRef.current) return;
+    const v = videoRef.current;
+    canvasRef.current.width = v.videoWidth; canvasRef.current.height = v.videoHeight;
+    canvasRef.current.getContext('2d').drawImage(v, 0, 0);
+    setCaptured(canvasRef.current.toDataURL('image/jpeg', .85));
+    stopCam(); setMode('preview');
+  };
+  const handleFile = e => {
+    const f = e.target.files[0]; if (!f) return;
+    const r = new FileReader(); r.onload = ev => { setCaptured(ev.target.result); setMode('preview'); }; r.readAsDataURL(f);
+  };
+  useEffect(() => () => stopCam(), []);
+
+  return (
+    <div className="overlay" onClick={onClose}>
+      <div className="sheet" onClick={e => e.stopPropagation()}>
+        <div className="sheet-handle"></div>
+        <div style={{padding:'0 22px'}}>
+          {mode === 'options' && (
+            <div className="fadeUp">
+              <p style={{fontWeight:700,fontSize:17,marginBottom:4}}>Foto de perfil</p>
+              <p style={{color:'var(--fg2)',fontSize:13,marginBottom:22}}>¿Cómo quieres añadir la foto?</p>
+              <div style={{display:'flex',flexDirection:'column',gap:12}}>
+                <button className="btn btn-primary" style={{justifyContent:'flex-start',gap:14,width:'100%'}} onClick={startCam}>
+                  {Icon.cam(20,'#fff')} Abrir cámara
+                </button>
+                <button className="btn btn-outline" style={{justifyContent:'flex-start',gap:14,width:'100%'}} onClick={() => fileRef.current.click()}>
+                  {Icon.gallery()} Elegir de galería
+                </button>
+                {currentPhoto && <button className="btn btn-ghost" style={{color:'#EF4444'}} onClick={() => { onCapture(null); onClose(); }}>Eliminar foto</button>}
+              </div>
+              <input ref={fileRef} type="file" accept="image/*" style={{display:'none'}} onChange={handleFile} />
+            </div>
+          )}
+          {mode === 'camera' && (
+            <div className="fadeUp">
+              <p style={{fontWeight:700,fontSize:17,marginBottom:14}}>Cámara</p>
+              {camErr ? (
+                <div style={{background:'var(--bg)',borderRadius:16,padding:24,textAlign:'center',marginBottom:18}}>
+                  <div style={{fontSize:36,marginBottom:8}}>📵</div>
+                  <p style={{color:'var(--fg2)',fontSize:13}}>Permiso de cámara denegado.<br/>Usa la galería.</p>
+                </div>
+              ) : (
+                <div style={{position:'relative',borderRadius:16,overflow:'hidden',background:'#000',marginBottom:16,aspectRatio:'1'}}>
+                  <video ref={videoRef} autoPlay playsInline muted style={{width:'100%',height:'100%',objectFit:'cover'}} />
+                  <canvas ref={canvasRef} style={{display:'none'}} />
+                </div>
+              )}
+              <div style={{display:'flex',gap:10}}>
+                <button className="btn btn-outline" style={{flex:1}} onClick={() => { stopCam(); setMode('options'); }}>← Atrás</button>
+                {!camErr && <button className="btn btn-primary" style={{flex:2}} onClick={snap}>📸 Capturar</button>}
+              </div>
+            </div>
+          )}
+          {mode === 'preview' && (
+            <div className="fadeUp">
+              <p style={{fontWeight:700,fontSize:17,marginBottom:14}}>Vista previa</p>
+              <div style={{borderRadius:16,overflow:'hidden',marginBottom:16,aspectRatio:'1',background:'var(--bg)'}}>
+                <img src={captured} style={{width:'100%',height:'100%',objectFit:'cover'}} />
+              </div>
+              <div style={{display:'flex',gap:10}}>
+                <button className="btn btn-outline" style={{flex:1}} onClick={() => { setCaptured(null); setMode('options'); }}>Reintentar</button>
+                <button className="btn btn-primary" style={{flex:2}} onClick={() => { stopCam(); onCapture(captured); onClose(); }}>✓ Usar esta</button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Form Sheet ──────────────────────────────────────────────
+function BirthdayForm({ initial, onSave, onClose, onDelete }) {
+  const [name, setName] = useState(initial?.name || '');
+  const [gender, setGender] = useState(initial?.gender || '');
+  const [birthDay, setBirthDay] = useState(initial?.birthDay || '');
+  const [birthMonth, setBirthMonth] = useState(initial?.birthMonth || '');
+  const [birthYear, setBirthYear] = useState(initial?.birthYear || '');
+  const [photo, setPhoto] = useState(initial?.photo || null);
+  const [interests, setInterests] = useState(initial?.interests || []);
+  const [notes, setNotes] = useState(initial?.notes || '');
+  const [showCam, setShowCam] = useState(false);
+  const [errors, setErrors] = useState({});
+
+  const toggleI = i => setInterests(p => p.includes(i) ? p.filter(x => x !== i) : [...p, i]);
+
+  const handleSave = () => {
+    const e = {};
+    if (!name.trim()) e.name = true;
+    if (!birthDay || !birthMonth) e.date = true;
+    if (Object.keys(e).length) { setErrors(e); return; }
+    onSave({ name: name.trim(), gender, birthDay: +birthDay, birthMonth: +birthMonth, birthYear: birthYear ? +birthYear : null, photo, interests, notes });
+  };
+
+  return (
+    <>
+      <div className="overlay" onClick={onClose}>
+        <div className="sheet" onClick={e => e.stopPropagation()}>
+          <div className="sheet-handle"></div>
+          <div style={{padding:'0 22px'}}>
+            {/* Header */}
+            <div style={{display:'flex',alignItems:'center',marginBottom:20}}>
+              <p style={{fontWeight:700,fontSize:17,flex:1}}>{initial ? 'Editar cumpleaños' : 'Nuevo cumpleaños'}</p>
+              <button className="btn btn-ghost" style={{padding:'6px 10px',color:'var(--fg3)'}} onClick={onClose}>✕</button>
+            </div>
+
+            {/* Photo */}
+            <div style={{display:'flex',justifyContent:'center',marginBottom:24}}>
+              <div style={{textAlign:'center'}}>
+                <div className="cam-ring" onClick={() => setShowCam(true)} style={{margin:'0 auto'}}>
+                  {photo
+                    ? <img src={photo} style={{width:'100%',height:'100%',objectFit:'cover'}} />
+                    : <div style={{textAlign:'center'}}>{Icon.cam(26,'var(--fg3)')}<div style={{fontSize:10,color:'var(--fg3)',marginTop:4,fontWeight:500}}>Foto</div></div>
+                  }
+                </div>
+                <div style={{fontSize:11,color:'var(--blue)',fontWeight:600,marginTop:8,cursor:'pointer'}} onClick={() => setShowCam(true)}>
+                  {photo ? 'Cambiar foto' : 'Añadir foto'}
+                </div>
+              </div>
+            </div>
+
+            <div style={{display:'flex',flexDirection:'column',gap:16}}>
+              {/* Name */}
+              <div className="input-wrap">
+                <label className="input-label">Nombre completo *</label>
+                <input className="input" style={errors.name ? {borderColor:'#EF4444'} : {}} value={name} onChange={e => setName(e.target.value)} placeholder="Ej. Ana Rodríguez" />
+                {errors.name && <span style={{fontSize:11,color:'#EF4444'}}>El nombre es obligatorio</span>}
+              </div>
+
+              {/* Gender */}
+              <div className="input-wrap">
+                <label className="input-label">Género</label>
+                <div style={{display:'flex',gap:8}}>
+                  {GENDERS.map(g => <button key={g.value} className={`gender-btn${gender===g.value?' active':''}`} onClick={() => setGender(g.value)}>{g.label}</button>)}
+                </div>
+              </div>
+
+              {/* Date */}
+              <div className="input-wrap">
+                <label className="input-label">Fecha de cumpleaños *</label>
+                <div style={{display:'flex',gap:8}}>
+                  <div style={{flex:1,display:'flex',flexDirection:'column',gap:4}}>
+                    <input className="input" style={{...(errors.date?{borderColor:'#EF4444'}:{}),textAlign:'center'}} type="number" placeholder="DD" min="1" max="31" value={birthDay} onChange={e => setBirthDay(e.target.value)} />
+                    <span style={{fontSize:10,color:'var(--fg3)',textAlign:'center',fontWeight:500}}>Día</span>
+                  </div>
+                  <div style={{flex:1,display:'flex',flexDirection:'column',gap:4}}>
+                    <input className="input" style={{...(errors.date?{borderColor:'#EF4444'}:{}),textAlign:'center'}} type="number" placeholder="MM" min="1" max="12" value={birthMonth} onChange={e => setBirthMonth(e.target.value)} />
+                    <span style={{fontSize:10,color:'var(--fg3)',textAlign:'center',fontWeight:500}}>Mes</span>
+                  </div>
+                  <div style={{flex:1.4,display:'flex',flexDirection:'column',gap:4}}>
+                    <input className="input" style={{textAlign:'center'}} type="number" placeholder="AAAA" min="1900" max="2026" value={birthYear} onChange={e => setBirthYear(e.target.value)} />
+                    <span style={{fontSize:10,color:'var(--fg3)',textAlign:'center',fontWeight:500}}>Año (opcional)</span>
+                  </div>
+                </div>
+                {errors.date && <span style={{fontSize:11,color:'#EF4444'}}>Ingresa día y mes</span>}
+              </div>
+
+              {/* Interests */}
+              <div className="input-wrap">
+                <label className="input-label">Le gusta…</label>
+                <div style={{display:'flex',flexWrap:'wrap',gap:7,marginTop:2}}>
+                  {INTERESTS.map(i => <span key={i} className={`tag${interests.includes(i)?' active':''}`} onClick={() => toggleI(i)}>{i}</span>)}
+                </div>
+              </div>
+
+              {/* Notes */}
+              <div className="input-wrap">
+                <label className="input-label">Notas</label>
+                <textarea className="input" style={{minHeight:68,resize:'none',lineHeight:1.6}} value={notes} onChange={e => setNotes(e.target.value)} placeholder="Ideas de regalo, datos especiales…" />
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div style={{marginTop:22,display:'flex',gap:10}}>
+              {initial && onDelete && (
+                <button className="btn btn-outline" style={{color:'#EF4444',borderColor:'#FEE2E2',gap:6}} onClick={onDelete}>
+                  {Icon.trash()} Eliminar
+                </button>
+              )}
+              <button className="btn btn-primary" style={{flex:1}} onClick={handleSave}>
+                {initial ? 'Guardar cambios' : '🎂 Registrar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+      {showCam && <CameraSheet currentPhoto={photo} onCapture={setPhoto} onClose={() => setShowCam(false)} />}
+    </>
+  );
+}
+
+// ── Detail Sheet ─────────────────────────────────────────────
+function DetailSheet({ person, onEdit, onClose }) {
+  const days = getDaysUntil(person.birthMonth, person.birthDay);
+  const nextAge = getNextAge(person.birthYear, person.birthMonth, person.birthDay);
+  const isToday = days === 0;
+
+  return (
+    <div className="overlay" onClick={onClose}>
+      <div className="sheet" onClick={e => e.stopPropagation()}>
+        <div className="sheet-handle"></div>
+
+        {/* Blue hero */}
+        <div style={{background:'linear-gradient(135deg, #2563FF, #4B7BFF)',margin:'0 16px 20px',borderRadius:20,padding:24,color:'#fff',position:'relative',overflow:'hidden'}}>
+          <div style={{position:'absolute',top:-30,right:-30,width:120,height:120,borderRadius:'50%',background:'rgba(255,255,255,.1)'}}></div>
+          <div style={{position:'absolute',bottom:-20,left:40,width:80,height:80,borderRadius:'50%',background:'rgba(255,255,255,.08)'}}></div>
+          <div style={{display:'flex',alignItems:'center',gap:16,position:'relative'}}>
+            <div style={{borderRadius:'50%',border:'3px solid rgba(255,255,255,.4)',padding:2}}>
+              <Avatar person={person} size={64} />
+            </div>
+            <div>
+              <div style={{fontWeight:700,fontSize:18,marginBottom:2}}>{person.name}</div>
+              {person.gender && <div style={{fontSize:12,opacity:.8}}>{GENDERS.find(g=>g.value===person.gender)?.label}</div>}
+              <div style={{fontSize:12,opacity:.75,marginTop:4}}>{fmtDate(person.birthMonth,person.birthDay,person.birthYear)}</div>
+            </div>
+          </div>
+
+          {/* Countdown */}
+          <div style={{marginTop:20,background:'rgba(255,255,255,.15)',borderRadius:14,padding:14,textAlign:'center',backdropFilter:'blur(10px)'}}>
+            {isToday ? (
+              <div><div style={{fontSize:28}}>🎉</div><div style={{fontWeight:800,fontSize:18,marginTop:4}}>¡HOY ES SU CUMPLEAÑOS!</div><div style={{fontSize:12,opacity:.8,marginTop:2}}>¡No olvides felicitarle!</div></div>
+            ) : (
+              <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:16}}>
+                <div><div style={{fontSize:36,fontWeight:800,lineHeight:1}}>{days}</div><div style={{fontSize:11,opacity:.75,fontWeight:500}}>días restantes</div></div>
+                {nextAge && <div style={{width:1,height:40,background:'rgba(255,255,255,.3)'}}></div>}
+                {nextAge && <div><div style={{fontSize:36,fontWeight:800,lineHeight:1}}>{nextAge}</div><div style={{fontSize:11,opacity:.75,fontWeight:500}}>próximos años</div></div>}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div style={{padding:'0 22px'}}>
+          {person.interests?.length > 0 && (
+            <div style={{marginBottom:18}}>
+              <p style={{fontSize:11,fontWeight:700,color:'var(--fg2)',textTransform:'uppercase',letterSpacing:'.07em',marginBottom:10}}>Le gusta</p>
+              <div style={{display:'flex',flexWrap:'wrap',gap:7}}>
+                {person.interests.map(i => <span key={i} className="tag active">{i}</span>)}
+              </div>
+            </div>
+          )}
+
+          {person.notes && (
+            <div style={{marginBottom:20,background:'var(--bg)',borderRadius:14,padding:14}}>
+              <p style={{fontSize:11,fontWeight:700,color:'var(--fg2)',textTransform:'uppercase',letterSpacing:'.07em',marginBottom:6}}>Notas</p>
+              <p style={{fontSize:13,color:'var(--fg2)',lineHeight:1.6}}>{person.notes}</p>
+            </div>
+          )}
+
+          <button className="btn btn-primary" style={{width:'100%',gap:8}} onClick={onEdit}>
+            {Icon.edit()} Editar cumpleaños
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Birthday Card ────────────────────────────────────────────
+function BirthdayCard({ person, onClick, delay = 0 }) {
+  const days = getDaysUntil(person.birthMonth, person.birthDay);
+  const isToday = days === 0;
+  const isSoon = days <= 7 && !isToday;
+
+  return (
+    <div className={`card${isToday?' today':''} fadeUp`} style={{animationDelay:`${delay}ms`}} onClick={onClick}>
+      {isToday && <div style={{height:3,background:'linear-gradient(90deg,#2563FF,#60A5FA)'}}></div>}
+      <div style={{padding:'14px 16px',display:'flex',alignItems:'center',gap:14}}>
+        <Avatar person={person} size={48} />
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontWeight:600,fontSize:14,color:'var(--fg)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{person.name}</div>
+          <div style={{fontSize:12,color:'var(--fg2)',marginTop:1}}>
+            {fmtDate(person.birthMonth, person.birthDay, person.birthYear)}
+            {person.birthYear && <span style={{color:'var(--fg3)'}}> · {getNextAge(person.birthYear,person.birthMonth,person.birthDay)} años</span>}
+          </div>
+          {person.interests?.length > 0 && (
+            <div style={{marginTop:6,display:'flex',gap:4,flexWrap:'wrap'}}>
+              {person.interests.slice(0,2).map(i => (
+                <span key={i} style={{fontSize:10,padding:'2px 8px',background:'var(--blue-light)',color:'var(--blue)',borderRadius:99,fontWeight:500}}>{i}</span>
+              ))}
+              {person.interests.length > 2 && <span style={{fontSize:10,color:'var(--fg3)',alignSelf:'center'}}>+{person.interests.length-2}</span>}
+            </div>
+          )}
+        </div>
+        <div>
+          <div className={`countdown-pill${isToday?' today':''}`} style={isSoon?{background:'#FEF3C7',color:'#D97706'}:{}}>
+            <span className="countdown-num">{isToday ? '🎂' : days}</span>
+            <span className="countdown-lbl">{isToday ? '¡hoy!' : days===1?'día':'días'}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Home Screen ──────────────────────────────────────────────
+function HomeScreen({ people, onOpenDetail, onAdd }) {
+  const [search, setSearch] = useState('');
+  const [tab, setTab] = useState('upcoming');
+  const today = new Date();
+
+  const sorted = [...people]
+    .filter(p => p.name.toLowerCase().includes(search.toLowerCase()))
+    .sort((a,b) => getDaysUntil(a.birthMonth,a.birthDay) - getDaysUntil(b.birthMonth,b.birthDay));
+
+  const upcoming = sorted.filter(p => getDaysUntil(p.birthMonth,p.birthDay) <= 30);
+  const thisMonth = sorted.filter(p => p.birthMonth === today.getMonth()+1);
+  const displayed = tab==='upcoming' ? upcoming : tab==='month' ? thisMonth : sorted;
+  const next = sorted[0];
+  const nextDays = next ? getDaysUntil(next.birthMonth, next.birthDay) : null;
+
+  return (
+    <div style={{display:'flex',flexDirection:'column',height:'100%',overflow:'hidden'}}>
+      {/* Blue header */}
+      <div style={{background:'linear-gradient(145deg, #1A47CC, #2563FF)',padding:'16px 20px 24px',flexShrink:0}}>
+        <div style={{display:'flex',alignItems:'center',marginBottom:16}}>
+          <div style={{flex:1}}>
+            <div style={{color:'rgba(255,255,255,.65)',fontSize:12,fontWeight:500}}>
+              {today.toLocaleDateString('es',{weekday:'long',day:'numeric',month:'long'})}
+            </div>
+            <div style={{color:'#fff',fontWeight:700,fontSize:20,marginTop:2}}>Cumpleaños</div>
+          </div>
+          <div style={{width:36,height:36,borderRadius:'50%',background:'rgba(255,255,255,.15)',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer'}} onClick={onAdd}>
+            {Icon.plus(18,'#fff')}
+          </div>
+        </div>
+
+        {/* Next birthday banner */}
+        {next && (
+          <div style={{background:'rgba(255,255,255,.15)',borderRadius:16,padding:14,display:'flex',alignItems:'center',gap:14,cursor:'pointer',backdropFilter:'blur(12px)'}} onClick={() => onOpenDetail(next)}>
+            <Avatar person={next} size={44} />
+            <div style={{flex:1}}>
+              <div style={{color:'rgba(255,255,255,.7)',fontSize:11,fontWeight:600,textTransform:'uppercase',letterSpacing:'.06em'}}>
+                {nextDays===0 ? '¡Hoy!' : 'Próximo'}
+              </div>
+              <div style={{color:'#fff',fontWeight:700,fontSize:14,marginTop:1}}>
+                {nextDays===0 ? `¡Feliz cumpleaños, ${next.name.split(' ')[0]}!` : next.name.split(' ')[0]}
+              </div>
+              {nextDays!==0 && <div style={{color:'rgba(255,255,255,.7)',fontSize:12}}>En {nextDays} día{nextDays===1?'':'s'} · {fmtDate(next.birthMonth,next.birthDay)}</div>}
+            </div>
+            <div style={{background:'rgba(255,255,255,.2)',borderRadius:10,padding:'6px 12px',textAlign:'center'}}>
+              <div style={{color:'#fff',fontWeight:800,fontSize:22,lineHeight:1}}>{nextDays===0?'🎉':nextDays}</div>
+              <div style={{color:'rgba(255,255,255,.7)',fontSize:9,fontWeight:600,textTransform:'uppercase',letterSpacing:'.06em'}}>{nextDays===0?'¡HOY!':'días'}</div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Search + Tabs */}
+      <div style={{background:'var(--white)',padding:'14px 16px 10px',boxShadow:'0 2px 12px rgba(0,0,0,.04)',flexShrink:0}}>
+        <div className="search-wrap" style={{marginBottom:12}}>
+          {Icon.search()}
+          <input className="input" style={{fontSize:13}} placeholder="Buscar…" value={search} onChange={e => setSearch(e.target.value)} />
+        </div>
+        <div className="tab-bar">
+          {[{id:'upcoming',label:`Próximos (${upcoming.length})`},{id:'month',label:`Mes (${thisMonth.length})`},{id:'all',label:`Todos (${people.length})`}].map(t => (
+            <button key={t.id} className={`tab-btn${tab===t.id?' active':''}`} onClick={() => setTab(t.id)}>{t.label}</button>
+          ))}
+        </div>
+      </div>
+
+      {/* List */}
+      <div style={{flex:1,overflowY:'auto',padding:'14px 16px 80px',background:'var(--bg)'}}>
+        {displayed.length === 0 ? (
+          <div style={{textAlign:'center',padding:'48px 20px',color:'var(--fg3)'}}>
+            <div style={{fontSize:48,marginBottom:12}}>🎈</div>
+            <div style={{fontWeight:700,fontSize:16,color:'var(--fg)',marginBottom:6}}>
+              {search ? 'Sin resultados' : tab==='month' ? 'Nadie cumple este mes' : 'Sin cumpleaños aún'}
+            </div>
+            <div style={{fontSize:13}}>{!search && '¡Registra el primero!'}</div>
+            {!search && <button className="btn btn-primary" style={{marginTop:18}} onClick={onAdd}>+ Agregar</button>}
+          </div>
+        ) : (
+          <div style={{display:'flex',flexDirection:'column',gap:10}}>
+            {displayed.map((p,i) => <BirthdayCard key={p.id} person={p} onClick={() => onOpenDetail(p)} delay={i*40} />)}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Calendar Screen ──────────────────────────────────────────
+function CalendarScreen({ people }) {
+  const today = new Date();
+  const [viewMonth, setViewMonth] = useState(today.getMonth());
+  const [viewYear, setViewYear] = useState(today.getFullYear());
+
+  const months = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  const days = ['D','L','M','M','J','V','S'];
+
+  const firstDay = new Date(viewYear, viewMonth, 1).getDay();
+  const daysInMonth = new Date(viewYear, viewMonth+1, 0).getDate();
+
+  const bdaysThisMonth = people.filter(p => p.birthMonth === viewMonth+1);
+  const bdayDays = new Set(bdaysThisMonth.map(p => p.birthDay));
+
+  const prev = () => { if(viewMonth===0){setViewMonth(11);setViewYear(y=>y-1);}else setViewMonth(m=>m-1); };
+  const next = () => { if(viewMonth===11){setViewMonth(0);setViewYear(y=>y+1);}else setViewMonth(m=>m+1); };
+
+  return (
+    <div style={{display:'flex',flexDirection:'column',height:'100%',overflow:'hidden'}}>
+      <div style={{background:'linear-gradient(145deg,#1A47CC,#2563FF)',padding:'16px 20px 24px',flexShrink:0}}>
+        <div style={{color:'#fff',fontWeight:700,fontSize:20,marginBottom:4}}>Calendario</div>
+        <div style={{color:'rgba(255,255,255,.65)',fontSize:13}}>{bdaysThisMonth.length} cumpleaños en {months[viewMonth]}</div>
+      </div>
+      <div style={{flex:1,overflowY:'auto',background:'var(--bg)',padding:'16px'}}>
+        {/* Month nav */}
+        <div style={{background:'var(--white)',borderRadius:18,padding:20,boxShadow:'0 2px 10px rgba(0,0,0,0.06)',marginBottom:14}}>
+          <div style={{display:'flex',alignItems:'center',marginBottom:16}}>
+            <button onClick={prev} style={{background:'var(--blue-light)',border:'none',borderRadius:10,width:36,height:36,cursor:'pointer',color:'var(--blue)',fontSize:18,display:'flex',alignItems:'center',justifyContent:'center'}}>‹</button>
+            <div style={{flex:1,textAlign:'center',fontWeight:700,fontSize:15}}>{months[viewMonth]} {viewYear}</div>
+            <button onClick={next} style={{background:'var(--blue-light)',border:'none',borderRadius:10,width:36,height:36,cursor:'pointer',color:'var(--blue)',fontSize:18,display:'flex',alignItems:'center',justifyContent:'center'}}>›</button>
+          </div>
+          {/* Grid */}
+          <div style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:4}}>
+            {days.map((d,i) => <div key={i} style={{textAlign:'center',fontSize:11,fontWeight:700,color:'var(--fg3)',padding:'4px 0'}}>{d}</div>)}
+            {Array.from({length:firstDay}).map((_,i) => <div key={'e'+i}></div>)}
+            {Array.from({length:daysInMonth}).map((_,i) => {
+              const d = i+1;
+              const isBday = bdayDays.has(d);
+              const isToday = d===today.getDate()&&viewMonth===today.getMonth()&&viewYear===today.getFullYear();
+              return (
+                <div key={d} style={{
+                  aspectRatio:'1',display:'flex',alignItems:'center',justifyContent:'center',
+                  borderRadius:'50%',fontSize:13,fontWeight:isBday||isToday?700:400,
+                  background: isToday?'var(--blue)':isBday?'var(--blue-light)':'transparent',
+                  color: isToday?'#fff':isBday?'var(--blue)':'var(--fg)',
+                  position:'relative',cursor:isBday?'pointer':'default',
+                }}>
+                  {d}
+                  {isBday && !isToday && <div style={{position:'absolute',bottom:2,width:4,height:4,borderRadius:'50%',background:'var(--blue)'}}></div>}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+        {/* Birthdays this month */}
+        {bdaysThisMonth.length > 0 && (
+          <div>
+            <p style={{fontSize:11,fontWeight:700,color:'var(--fg2)',textTransform:'uppercase',letterSpacing:'.07em',marginBottom:10}}>Cumpleaños en {months[viewMonth]}</p>
+            <div style={{display:'flex',flexDirection:'column',gap:10}}>
+              {bdaysThisMonth.sort((a,b)=>a.birthDay-b.birthDay).map((p,i) => <BirthdayCard key={p.id} person={p} onClick={()=>{}} delay={i*40} />)}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Stats Screen ─────────────────────────────────────────────
+function StatsScreen({ people }) {
+  const today = new Date();
+  const upcoming7 = people.filter(p => getDaysUntil(p.birthMonth,p.birthDay) <= 7);
+  const thisMonth = people.filter(p => p.birthMonth === today.getMonth()+1);
+  const genderCounts = {hombre:0,mujer:0,otro:0};
+  people.forEach(p => { if(p.gender) genderCounts[p.gender]++; });
+  const monthCounts = Array.from({length:12},(_,i)=>people.filter(p=>p.birthMonth===i+1).length);
+  const maxMonth = Math.max(...monthCounts,1);
+  const monthNames = ['E','F','M','A','M','J','J','A','S','O','N','D'];
+
+  return (
+    <div style={{display:'flex',flexDirection:'column',height:'100%',overflow:'hidden'}}>
+      <div style={{background:'linear-gradient(145deg,#1A47CC,#2563FF)',padding:'16px 20px 24px',flexShrink:0}}>
+        <div style={{color:'#fff',fontWeight:700,fontSize:20}}>Estadísticas</div>
+        <div style={{color:'rgba(255,255,255,.65)',fontSize:13,marginTop:2}}>{people.length} cumpleaños registrados</div>
+      </div>
+      <div style={{flex:1,overflowY:'auto',background:'var(--bg)',padding:'16px 16px 80px'}}>
+        {/* Summary cards */}
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:14}}>
+          {[
+            {label:'Total',value:people.length,emoji:'🎂',color:'#2563FF'},
+            {label:'Este mes',value:thisMonth.length,emoji:'📅',color:'#7C3AED'},
+            {label:'Esta semana',value:upcoming7.length,emoji:'⏰',color:'#059669'},
+            {label:'Con foto',value:people.filter(p=>p.photo).length,emoji:'📸',color:'#D97706'},
+          ].map(s => (
+            <div key={s.label} style={{background:'var(--white)',borderRadius:18,padding:16,boxShadow:'0 2px 10px rgba(0,0,0,0.06)'}}>
+              <div style={{fontSize:24,marginBottom:6}}>{s.emoji}</div>
+              <div style={{fontWeight:800,fontSize:28,color:s.color,lineHeight:1}}>{s.value}</div>
+              <div style={{fontSize:12,color:'var(--fg2)',marginTop:2}}>{s.label}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Monthly chart */}
+        <div style={{background:'var(--white)',borderRadius:18,padding:20,boxShadow:'0 2px 10px rgba(0,0,0,0.06)',marginBottom:14}}>
+          <p style={{fontWeight:700,fontSize:14,marginBottom:16}}>Por mes</p>
+          <div style={{display:'flex',alignItems:'flex-end',gap:6,height:80}}>
+            {monthCounts.map((c,i) => (
+              <div key={i} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:4}}>
+                <div style={{
+                  width:'100%',background:i===today.getMonth()?'var(--blue)':'var(--blue-light)',
+                  borderRadius:'6px 6px 0 0',
+                  height:`${Math.max((c/maxMonth)*100,c>0?15:0)}%`,
+                  minHeight:c>0?4:0,
+                  transition:'height .4s ease',
+                }}></div>
+                <div style={{fontSize:9,color:'var(--fg3)',fontWeight:600}}>{monthNames[i]}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Gender chart */}
+        {people.length > 0 && (
+          <div style={{background:'var(--white)',borderRadius:18,padding:20,boxShadow:'0 2px 10px rgba(0,0,0,0.06)'}}>
+            <p style={{fontWeight:700,fontSize:14,marginBottom:14}}>Por género</p>
+            {[{k:'hombre',label:'Hombre',color:'#2563FF'},{k:'mujer',label:'Mujer',color:'#EC4899'},{k:'otro',label:'Otro',color:'#8B5CF6'}].map(g => (
+              <div key={g.k} style={{marginBottom:10}}>
+                <div style={{display:'flex',justifyContent:'space-between',marginBottom:4}}>
+                  <span style={{fontSize:13,color:'var(--fg2)'}}>{g.label}</span>
+                  <span style={{fontSize:13,fontWeight:600,color:'var(--fg)'}}>{genderCounts[g.k]}</span>
+                </div>
+                <div style={{height:6,background:'var(--bg)',borderRadius:99,overflow:'hidden'}}>
+                  <div style={{height:'100%',width:`${(genderCounts[g.k]/people.length)*100}%`,background:g.color,borderRadius:99,transition:'width .5s ease'}}></div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Main App ─────────────────────────────────────────────────
+function BirthdayApp({ user, onLogout }) {
+  const [people, setPeople] = useState(() => {
+    try { const s = localStorage.getItem('bdays_v4'); return s ? JSON.parse(s) : SAMPLE; } catch { return SAMPLE; }
+  });
+  const [tab, setTab] = useState('home');
+  const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState(null);
+  const [detail, setDetail] = useState(null);
+
+  useEffect(() => { localStorage.setItem('bdays_v4', JSON.stringify(people)); }, [people]);
+
+  const save = data => {
+    if (editing) { setPeople(p => p.map(x => x.id===editing.id ? {...x,...data} : x)); setEditing(null); setDetail(null); }
+    else { setPeople(p => [...p, {...data, id: Date.now()}]); }
+    setShowForm(false);
+  };
+  const del = () => { setPeople(p => p.filter(x => x.id!==editing.id)); setEditing(null); setDetail(null); setShowForm(false); };
+
+  return (
+    <div style={{display:'flex',flexDirection:'column',height:'100%',background:'var(--bg)',position:'relative',overflow:'hidden'}}>
+      {/* Screens */}
+      <div style={{flex:1,overflow:'hidden'}}>
+        {tab==='home'    && <HomeScreen people={people} onOpenDetail={setDetail} onAdd={() => { setEditing(null); setShowForm(true); }} />}
+        {tab==='cal'     && <CalendarScreen people={people} />}
+        {tab==='stats'   && <StatsScreen people={people} />}
+        {tab==='profile' && <ProfileScreen user={user} people={people} onLogout={onLogout} />}
+      </div>
+
+      {/* Bottom Nav */}
+      <div style={{background:'var(--white)',borderTop:'1px solid var(--border)',display:'flex',alignItems:'center',paddingBottom:4,flexShrink:0,boxShadow:'0 -4px 20px rgba(0,0,0,.06)'}}>
+        <div className={`nav-item${tab==='home'?' active':''}`} onClick={() => setTab('home')}>
+          {Icon.home(tab==='home')}
+          <span>Inicio</span>
+        </div>
+        <div className={`nav-item${tab==='cal'?' active':''}`} onClick={() => setTab('cal')}>
+          {Icon.calendar(tab==='cal')}
+          <span>Calendario</span>
+        </div>
+        <div style={{flex:1,display:'flex',justifyContent:'center'}}>
+          <button className="nav-fab" onClick={() => { setEditing(null); setShowForm(true); }}>
+            {Icon.plus(22,'#fff')}
+          </button>
+        </div>
+        <div className={`nav-item${tab==='stats'?' active':''}`} onClick={() => setTab('stats')}>
+          {Icon.bell(tab==='stats')}
+          <span>Stats</span>
+        </div>
+        <div className={`nav-item${tab==='profile'?' active':''}`} onClick={() => setTab('profile')}>
+          {Icon.user(tab==='profile')}
+          <span>Perfil</span>
+        </div>
+      </div>
+
+      {/* Modals */}
+      {detail && !showForm && (
+        <DetailSheet person={detail} onEdit={() => { setEditing(detail); setShowForm(true); }} onClose={() => setDetail(null)} />
+      )}
+      {showForm && (
+        <BirthdayForm initial={editing} onSave={save} onClose={() => { setShowForm(false); setEditing(null); }} onDelete={editing ? del : null} />
+      )}
+    </div>
+  );
+}
+
+// ── Login Screen ─────────────────────────────────────────────
+function LoginScreen({ onLogin }) {
+  const [loading, setLoading] = useState(false);
+  const handleGmail = () => {
+    setLoading(true);
+    setTimeout(() => onLogin({ name: 'Usuario', email: 'usuario@gmail.com', photo: null }), 1400);
+  };
+  return (
+    <div style={{display:'flex',flexDirection:'column',width:'100%',height:'100%',background:'#fff',overflow:'hidden',position:'relative'}}>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+      {/* blobs decorativos */}
+      <div style={{position:'absolute',top:-40,left:-40,width:200,height:200,borderRadius:'50%',background:'#2563FF0C',pointerEvents:'none'}}></div>
+      <div style={{position:'absolute',top:80,right:-30,width:130,height:130,borderRadius:'50%',background:'#2563FF07',pointerEvents:'none'}}></div>
+
+      {/* Contenido central */}
+      <div style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:'28px 28px 16px',position:'relative',zIndex:1}}>
+        {/* Ícono */}
+        <div style={{marginBottom:22}}>
+          <div style={{width:84,height:84,borderRadius:24,background:'linear-gradient(145deg,#2563FF,#4B7BFF)',display:'flex',alignItems:'center',justifyContent:'center',boxShadow:'0 10px 36px rgba(37,99,255,.3)'}}>
+            <svg width={42} height={42} viewBox="0 0 24 24" fill="none">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" fill="rgba(255,255,255,.25)" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+              <circle cx="8.5" cy="11" r="1.2" fill="#fff"/>
+              <circle cx="12" cy="11" r="1.2" fill="#fff"/>
+              <circle cx="15.5" cy="11" r="1.2" fill="#fff"/>
+            </svg>
+          </div>
+        </div>
+
+        <div style={{textAlign:'center',marginBottom:8}}>
+          <div style={{fontWeight:800,fontSize:26,color:'#1A1D3A',lineHeight:1.2}}>Cumpleaños</div>
+          <div style={{fontWeight:800,fontSize:26,color:'#2563FF',lineHeight:1.2}}>App 🎂</div>
+        </div>
+        <div style={{color:'#6B7280',fontSize:13,textAlign:'center',lineHeight:1.7,marginBottom:36}}>
+          Registra y recuerda los cumpleaños<br/>de quienes más quieres
+        </div>
+
+        {/* Botón Gmail */}
+        <button onClick={handleGmail} disabled={loading} style={{
+          width:'100%',display:'flex',alignItems:'center',justifyContent:'center',gap:12,
+          padding:'15px 20px',borderRadius:16,border:'2px solid #E5E9F8',
+          background:'#fff',cursor:'pointer',fontFamily:'Poppins,sans-serif',
+          fontSize:14,fontWeight:600,color:'#1A1D3A',
+          boxShadow:'0 4px 20px rgba(0,0,0,.09)',marginBottom:16,
+        }}>
+          {loading
+            ? <div style={{width:22,height:22,border:'3px solid #E5E9F8',borderTop:'3px solid #2563FF',borderRadius:'50%',animation:'spin .7s linear infinite'}}></div>
+            : <svg width={22} height={22} viewBox="0 0 24 24">
+                <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
+                <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+              </svg>
+          }
+          {loading ? 'Iniciando sesión…' : 'Continuar con Google'}
+        </button>
+
+        <div style={{fontSize:11,color:'#9CA3AF',textAlign:'center',lineHeight:1.6}}>
+          Al continuar aceptas nuestros términos de uso<br/>y política de privacidad
+        </div>
+      </div>
+
+      {/* Footer fijo al fondo */}
+      <div style={{background:'linear-gradient(145deg,#1A47CC,#2563FF)',padding:'16px 24px 34px',flexShrink:0}}>
+        <div style={{display:'flex',justifyContent:'space-around'}}>
+          {['🎂 Registra','📅 Recuerda','🎁 Celebra'].map(t => (
+            <div key={t} style={{color:'rgba(255,255,255,.85)',fontSize:12,fontWeight:500}}>{t}</div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Profile Screen ────────────────────────────────────────────
+function ProfileScreen({ user, people, onLogout }) {
+  const exportMyDate = () => {
+    const d = new Date();
+    const ics = [
+      'BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//CumpleañosApp//ES',
+      'BEGIN:VEVENT',
+      `DTSTART:${d.getFullYear()}0101`,
+      `SUMMARY:Mi cumpleaños`,
+      `DESCRIPTION:Exportado desde Cumpleaños App`,
+      'RRULE:FREQ=YEARLY',
+      'END:VEVENT','END:VCALENDAR'
+    ].join('\r\n');
+    const blob = new Blob([ics], {type:'text/calendar'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href=url; a.download='mi-cumpleanos.ics'; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const exportList = () => {
+    const months=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+    const header = 'Nombre,Día,Mes,Año,Género,Intereses,Notas\n';
+    const rows = people.map(p =>
+      `"${p.name}",${p.birthDay},${months[p.birthMonth-1]},${p.birthYear||''},${p.gender||''},"${(p.interests||[]).join('; ')}","${p.notes||''}"`
+    ).join('\n');
+    const blob = new Blob([header+rows], {type:'text/csv;charset=utf-8;'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href=url; a.download='lista-cumpleanos.csv'; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <div style={{display:'flex',flexDirection:'column',height:'100%',overflow:'hidden'}}>
+      {/* Blue header */}
+      <div style={{background:'linear-gradient(145deg,#1A47CC,#2563FF)',padding:'16px 20px 32px',flexShrink:0}}>
+        <div style={{color:'#fff',fontWeight:700,fontSize:20,marginBottom:20}}>Mi Perfil</div>
+        <div style={{display:'flex',alignItems:'center',gap:16}}>
+          <div style={{width:64,height:64,borderRadius:'50%',background:'rgba(255,255,255,.2)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:28,border:'3px solid rgba(255,255,255,.4)'}}>
+            {user.photo ? <img src={user.photo} style={{width:'100%',height:'100%',borderRadius:'50%',objectFit:'cover'}}/> : '👤'}
+          </div>
+          <div>
+            <div style={{color:'#fff',fontWeight:700,fontSize:17}}>{user.name}</div>
+            <div style={{color:'rgba(255,255,255,.7)',fontSize:13}}>{user.email}</div>
+          </div>
+        </div>
+      </div>
+
+      <div style={{flex:1,overflowY:'auto',background:'var(--bg)',padding:'16px 16px 80px'}}>
+        {/* Stats summary */}
+        <div style={{background:'var(--white)',borderRadius:18,padding:18,boxShadow:'0 2px 10px rgba(0,0,0,.06)',marginBottom:16}}>
+          <div style={{fontWeight:700,fontSize:14,color:'var(--fg)',marginBottom:14}}>Resumen</div>
+          <div style={{display:'flex',gap:0}}>
+            {[{v:people.length,l:'Registrados'},{v:people.filter(p=>getDaysUntil(p.birthMonth,p.birthDay)<=30).length,l:'Próximos'},{v:people.filter(p=>p.birthMonth===new Date().getMonth()+1).length,l:'Este mes'}].map((s,i,arr) => (
+              <div key={s.l} style={{flex:1,textAlign:'center',borderRight:i<arr.length-1?'1px solid var(--border)':'none',padding:'0 8px'}}>
+                <div style={{fontWeight:800,fontSize:24,color:'var(--blue)'}}>{s.v}</div>
+                <div style={{fontSize:11,color:'var(--fg2)',marginTop:2}}>{s.l}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Export buttons */}
+        <div style={{background:'var(--white)',borderRadius:18,padding:18,boxShadow:'0 2px 10px rgba(0,0,0,.06)',marginBottom:16}}>
+          <div style={{fontWeight:700,fontSize:14,color:'var(--fg)',marginBottom:6}}>Exportar</div>
+          <div style={{fontSize:12,color:'var(--fg2)',marginBottom:16}}>Guarda tus datos fácilmente</div>
+          <div style={{display:'flex',flexDirection:'column',gap:12}}>
+
+            {/* Export my date */}
+            <div style={{display:'flex',alignItems:'center',gap:14,padding:14,background:'var(--bg)',borderRadius:14,cursor:'pointer',border:'2px solid var(--blue-light)'}} onClick={exportMyDate}>
+              <div style={{width:44,height:44,borderRadius:14,background:'linear-gradient(135deg,#2563FF,#60A5FA)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                <svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+                  <path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/>
+                </svg>
+              </div>
+              <div style={{flex:1}}>
+                <div style={{fontWeight:600,fontSize:14,color:'var(--fg)'}}>Exportar mi fecha</div>
+                <div style={{fontSize:12,color:'var(--fg2)',marginTop:2}}>Descarga tu cumpleaños (.ics)</div>
+              </div>
+              <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="var(--blue)" strokeWidth="2.2" strokeLinecap="round"><polyline points="8 17 12 21 16 17"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.29"/></svg>
+            </div>
+
+            {/* Export list */}
+            <div style={{display:'flex',alignItems:'center',gap:14,padding:14,background:'var(--bg)',borderRadius:14,cursor:'pointer',border:'2px solid var(--blue-light)'}} onClick={exportList}>
+              <div style={{width:44,height:44,borderRadius:14,background:'linear-gradient(135deg,#7C3AED,#A78BFA)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                <svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
+                  <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>
+                </svg>
+              </div>
+              <div style={{flex:1}}>
+                <div style={{fontWeight:600,fontSize:14,color:'var(--fg)'}}>Exportar lista</div>
+                <div style={{fontSize:12,color:'var(--fg2)',marginTop:2}}>Todos los cumpleaños (.csv)</div>
+              </div>
+              <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="#7C3AED" strokeWidth="2.2" strokeLinecap="round"><polyline points="8 17 12 21 16 17"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.29"/></svg>
+            </div>
+          </div>
+        </div>
+
+        {/* Logout */}
+        <div style={{background:'var(--white)',borderRadius:18,overflow:'hidden',boxShadow:'0 2px 10px rgba(0,0,0,.06)'}}>
+          <div style={{display:'flex',alignItems:'center',gap:14,padding:16,cursor:'pointer',borderBottom:'1px solid var(--border)'}}>
+            <div style={{width:36,height:36,borderRadius:10,background:'#FEF3C7',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+              <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="#D97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+            </div>
+            <div style={{fontWeight:500,fontSize:14,color:'var(--fg)',flex:1}}>Notificaciones</div>
+            <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="var(--fg3)" strokeWidth="2" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+          </div>
+          <div style={{display:'flex',alignItems:'center',gap:14,padding:16,cursor:'pointer'}} onClick={onLogout}>
+            <div style={{width:36,height:36,borderRadius:10,background:'#FEE2E2',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+              <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            </div>
+            <div style={{fontWeight:500,fontSize:14,color:'#EF4444',flex:1}}>Cerrar sesión</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Root ─────────────────────────────────────────────────────
+function Root() {
+  const now = new Date();
+  const h = now.getHours().toString().padStart(2,'0');
+  const m = now.getMinutes().toString().padStart(2,'0');
+  const [user, setUser] = useState(() => {
+    try { const s = localStorage.getItem('bday_user'); return s ? JSON.parse(s) : null; } catch { return null; }
+  });
+
+  const handleLogin = (u) => { localStorage.setItem('bday_user', JSON.stringify(u)); setUser(u); };
+  const handleLogout = () => { localStorage.removeItem('bday_user'); setUser(null); };
+
+  // IOSDevice inner wrapper is overflow:auto — use explicit height to fill it
+  return (
+    <IOSDevice>
+      <div style={{height:'874px',display:'flex',flexDirection:'column',paddingTop:64}}>
+        {user
+          ? <BirthdayApp user={user} onLogout={handleLogout} />
+          : <LoginScreen onLogin={handleLogin} />
+        }
+      </div>
+    </IOSDevice>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<Root />);
+</script>
+</body>
+</html>
