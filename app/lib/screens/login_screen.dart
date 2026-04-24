@@ -203,15 +203,39 @@ class _LoginScreenState extends State<LoginScreen> {
             padding: EdgeInsets.fromLTRB(24, 16, 24, 16 + MediaQuery.of(context).padding.bottom),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: ['Registra', 'Recuerda', 'Celebra']
-                  .map((t) => Text(t,
-                      style: GoogleFonts.poppins(
-                          color: Colors.white.withOpacity(0.85), fontSize: 12, fontWeight: FontWeight.w500)))
-                  .toList(),
+              children: const [
+                _FooterBadge(icon: Icons.app_registration_rounded, label: 'Registra'),
+                _FooterBadge(icon: Icons.notifications_active_rounded, label: 'Recuerda'),
+                _FooterBadge(icon: Icons.celebration_rounded, label: 'Celebra'),
+              ],
             ),
           ),
         ],
       ),
+    );
+  }
+}
+
+class _FooterBadge extends StatelessWidget {
+  const _FooterBadge({required this.icon, required this.label});
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, color: Colors.white.withOpacity(0.9), size: 16),
+        const SizedBox(width: 6),
+        Text(
+          label,
+          style: GoogleFonts.poppins(
+            color: Colors.white.withOpacity(0.85),
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ],
     );
   }
 }
