@@ -14,7 +14,8 @@ return new class extends Migration
             $table->string('name');
             $table->string('email')->unique();
             $table->string('photo_url')->nullable();
-            $table->mediumText('photo_b64')->nullable();   // foto comprimida base64
+            $table->mediumText('photo_b64')->nullable();
+            $table->boolean('profile_completed')->default(false);
             // Audit
             $table->unsignedBigInteger('created_by')->nullable();
             $table->unsignedBigInteger('updated_by')->nullable();

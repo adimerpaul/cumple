@@ -6,6 +6,7 @@ class UserSession {
   final String email;
   final String? photoB64;
   final String laravelToken;
+  final bool profileCompleted;
   final String createdAt;
 
   const UserSession({
@@ -16,6 +17,7 @@ class UserSession {
     required this.email,
     this.photoB64,
     required this.laravelToken,
+    this.profileCompleted = false,
     required this.createdAt,
   });
 
@@ -27,6 +29,7 @@ class UserSession {
         'email': email,
         'photo_b64': photoB64,
         'laravel_token': laravelToken,
+        'profile_completed': profileCompleted ? 1 : 0,
         'created_at': createdAt,
       };
 
@@ -38,6 +41,19 @@ class UserSession {
         email: map['email'] as String,
         photoB64: map['photo_b64'] as String?,
         laravelToken: map['laravel_token'] as String,
+        profileCompleted: (map['profile_completed'] as int? ?? 0) == 1,
         createdAt: map['created_at'] as String,
+      );
+
+  UserSession copyWith({bool? profileCompleted}) => UserSession(
+        id: id,
+        firebaseUid: firebaseUid,
+        laravelUserId: laravelUserId,
+        name: name,
+        email: email,
+        photoB64: photoB64,
+        laravelToken: laravelToken,
+        profileCompleted: profileCompleted ?? this.profileCompleted,
+        createdAt: createdAt,
       );
 }

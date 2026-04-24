@@ -13,14 +13,12 @@ class AuthController extends Controller
     {
         $request->validate(['firebase_token' => 'required|string']);
 
-        // Verificar token de Firebase
         try {
             $factory = (new Factory)->withServiceAccount(
                 storage_path('app/firebase/serviceAccountKey.json')
             );
-            $auth    = $factory->createAuth();
-            $decoded = $auth->verifyIdToken($request->firebase_token);
-        } catch (\Throwable $e) {
+            $decoded = $factory->createAuth()->verifyIdToken($request->firebase_token);
+        } catch (\Throwable) {
             return response()->json(['message' => 'Token de Firebase inválido'], 401);
         }
 
@@ -29,41 +27,44 @@ class AuthController extends Controller
         $name     = $decoded->claims()->get('name', 'Usuario');
         $photoUrl = $decoded->claims()->get('picture');
 
-        // Si el usuario existe pero fue eliminado (soft delete) → rechazar
         $existing = User::withTrashed()->where('firebase_uid', $uid)->first();
         if ($existing?->trashed()) {
             return response()->json(['message' => 'Cuenta desactivada'], 403);
         }
 
-        // Crear o actualizar usuario
         $user = User::updateOrCreate(
             ['firebase_uid' => $uid],
             ['name' => $name, 'email' => $email, 'photo_url' => $photoUrl]
         );
 
-        // Revocar tokens anteriores y crear nuevo
         $user->tokens()->delete();
         $token = $user->createToken('cumple-app')->plainTextToken;
 
         return response()->json([
             'token' => $token,
-            'user'  => [
-                'id'        => $user->id,
-                'name'      => $user->name,
-                'email'     => $user->email,
-                'photo_url' => $user->photo_url,
-            ],
+            'user'  => $this->userPayload($user),
         ]);
     }
 
     public function me(Request $request): JsonResponse
     {
-        return response()->json(['user' => $request->user()]);
+        return response()->json(['user' => $this->userPayload($request->user())]);
     }
 
     public function logout(Request $request): JsonResponse
     {
         $request->user()->currentAccessToken()->delete();
         return response()->json(['message' => 'Sesión cerrada']);
+    }
+
+    private function userPayload(User $user): array
+    {
+        return [
+            'id'                => $user->id,
+            'name'              => $user->name,
+            'email'             => $user->email,
+            'photo_url'         => $user->photo_url,
+            'profile_completed' => $user->profile_completed,
+        ];
     }
 }

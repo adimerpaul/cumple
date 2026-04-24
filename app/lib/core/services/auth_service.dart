@@ -14,7 +14,6 @@ class AuthService {
   final _googleSignIn = GoogleSignIn();
 
   Future<UserSession> signInWithGoogle() async {
-    // 1. Google Sign-In
     final account = await _googleSignIn.signIn();
     if (account == null) throw Exception('Inicio de sesión cancelado');
 
@@ -27,24 +26,21 @@ class AuthService {
     final userCredential = await _auth.signInWithCredential(credential);
     final firebaseUser = userCredential.user!;
 
-    // 2. Token Firebase (forzar refresco)
     final firebaseToken = await firebaseUser.getIdToken(true);
     if (firebaseToken == null) throw Exception('No se pudo obtener el token de Firebase');
 
-    // 3. Foto pequeña en base64
     final photoB64 = await _downloadPhotoBase64(firebaseUser.photoURL);
-
-    // 4. Login en Laravel
     final data = await ApiService.instance.firebaseLogin(firebaseToken);
 
-    // 5. Guardar sesión en SQLite
+    final userData = data['user'] as Map<String, dynamic>;
     final session = UserSession(
       firebaseUid: firebaseUser.uid,
-      laravelUserId: data['user']['id'] as int,
-      name: data['user']['name'] as String,
-      email: data['user']['email'] as String,
+      laravelUserId: userData['id'] as int,
+      name: userData['name'] as String,
+      email: userData['email'] as String,
       photoB64: photoB64,
       laravelToken: data['token'] as String,
+      profileCompleted: userData['profile_completed'] as bool? ?? false,
       createdAt: DateTime.now().toIso8601String(),
     );
 
@@ -59,14 +55,11 @@ class AuthService {
     await _auth.signOut();
   }
 
-  // Descarga foto de perfil de Google en tamaño pequeño y la convierte a base64
   Future<String?> _downloadPhotoBase64(String? photoUrl) async {
     if (photoUrl == null) return null;
     try {
-      final small = photoUrl.contains('?')
-          ? '$photoUrl&sz=64'
-          : '$photoUrl?sz=64';
-      final res = await http.get(Uri.parse(small)).timeout(const Duration(seconds: 8));
+      final url = photoUrl.contains('?') ? '$photoUrl&sz=64' : '$photoUrl?sz=64';
+      final res = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 8));
       if (res.statusCode == 200) return base64Encode(res.bodyBytes);
     } catch (_) {}
     return null;

@@ -8,6 +8,7 @@ import 'core/services/session_service.dart';
 import 'models/user_session.dart';
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
+import 'screens/profile_setup_screen.dart';
 
 final navigatorKey = GlobalKey<NavigatorState>();
 
@@ -46,9 +47,11 @@ class CumpleApp extends StatelessWidget {
         textTheme: GoogleFonts.poppinsTextTheme(),
         useMaterial3: true,
       ),
-      home: initialSession != null
-          ? HomeScreen(session: initialSession!)
-          : const LoginScreen(),
+      home: initialSession == null
+          ? const LoginScreen()
+          : initialSession!.profileCompleted
+              ? HomeScreen(session: initialSession!)
+              : ProfileSetupScreen(session: initialSession!),
     );
   }
 }

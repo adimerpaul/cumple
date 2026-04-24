@@ -5,6 +5,7 @@ import '../app_colors.dart';
 import '../core/services/auth_service.dart';
 import '../core/services/api_service.dart';
 import 'home_screen.dart';
+import 'profile_setup_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -24,7 +25,11 @@ class _LoginScreenState extends State<LoginScreen> {
       if (mounted) {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => HomeScreen(session: session)),
+          MaterialPageRoute(
+            builder: (_) => session.profileCompleted
+                ? HomeScreen(session: session)
+                : ProfileSetupScreen(session: session),
+          ),
         );
       }
     } on ApiException catch (e) {
@@ -72,23 +77,63 @@ class _LoginScreenState extends State<LoginScreen> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         // Ícono app
-                        Container(
-                          width: 84, height: 84,
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: [AppColors.blue, AppColors.blueMid],
-                            ),
-                            borderRadius: BorderRadius.circular(24),
-                            boxShadow: [
-                              BoxShadow(
-                                color: AppColors.blue.withOpacity(0.30),
-                                blurRadius: 36, offset: const Offset(0, 10),
+                        Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            // Anillo exterior difuminado
+                            Container(
+                              width: 96, height: 96,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                gradient: RadialGradient(colors: [
+                                  AppColors.blue.withOpacity(0.18),
+                                  AppColors.blue.withOpacity(0.0),
+                                ]),
                               ),
-                            ],
-                          ),
-                          child: const Icon(Icons.cake_rounded, size: 42, color: Colors.white),
+                            ),
+                            // Círculo principal
+                            Container(
+                              width: 76, height: 76,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                gradient: const LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: [Color(0xFF6366F1), AppColors.blue],
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: AppColors.blue.withOpacity(0.38),
+                                    blurRadius: 28, offset: const Offset(0, 8),
+                                  ),
+                                ],
+                              ),
+                              child: const Icon(Icons.celebration_rounded, size: 38, color: Colors.white),
+                            ),
+                            // Chispa superior derecha
+                            Positioned(
+                              top: 4, right: 4,
+                              child: Container(
+                                width: 16, height: 16,
+                                decoration: const BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: Color(0xFFFBBC05),
+                                ),
+                                child: const Icon(Icons.star_rounded, size: 11, color: Colors.white),
+                              ),
+                            ),
+                            // Chispa inferior izquierda
+                            Positioned(
+                              bottom: 6, left: 6,
+                              child: Container(
+                                width: 12, height: 12,
+                                decoration: const BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: Color(0xFF34A853),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                         const SizedBox(height: 22),
 

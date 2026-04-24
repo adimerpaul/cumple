@@ -7,6 +7,7 @@ class Birthday {
   final String? gender;
   final String? notes;
   final String? interests;
+  final bool isSelf;
   final int notifyDaysBefore;
   final String createdAt;
 
@@ -19,6 +20,7 @@ class Birthday {
     this.gender,
     this.notes,
     this.interests,
+    this.isSelf = false,
     this.notifyDaysBefore = 1,
     required this.createdAt,
   });
@@ -53,6 +55,7 @@ class Birthday {
         'gender': gender,
         'notes': notes,
         'interests': interests,
+        'is_self': isSelf ? 1 : 0,
         'notify_days_before': notifyDaysBefore,
         'created_at': createdAt,
       };
@@ -66,32 +69,8 @@ class Birthday {
         gender: map['gender'] as String?,
         notes: map['notes'] as String?,
         interests: map['interests'] as String?,
+        isSelf: (map['is_self'] as int? ?? 0) == 1,
         notifyDaysBefore: map['notify_days_before'] as int? ?? 1,
         createdAt: map['created_at'] as String,
-      );
-
-  Birthday copyWith({
-    int? id,
-    String? name,
-    int? birthDay,
-    int? birthMonth,
-    int? birthYear,
-    String? gender,
-    String? notes,
-    String? interests,
-    int? notifyDaysBefore,
-    String? createdAt,
-  }) =>
-      Birthday(
-        id: id ?? this.id,
-        name: name ?? this.name,
-        birthDay: birthDay ?? this.birthDay,
-        birthMonth: birthMonth ?? this.birthMonth,
-        birthYear: birthYear ?? this.birthYear,
-        gender: gender ?? this.gender,
-        notes: notes ?? this.notes,
-        interests: interests ?? this.interests,
-        notifyDaysBefore: notifyDaysBefore ?? this.notifyDaysBefore,
-        createdAt: createdAt ?? this.createdAt,
       );
 }
