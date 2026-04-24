@@ -92,7 +92,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
       final notes = _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim();
 
       // 1. Guardar en Laravel
-      await ApiService.instance.createBirthday(
+      final data = await ApiService.instance.createBirthday(
         token: widget.session.laravelToken,
         name: name,
         birthDay: day,
@@ -104,8 +104,12 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
         isSelf: true,
       );
 
+      final backendBirthday = data['birthday'] as Map<String, dynamic>?;
+      final backendBirthdayId = backendBirthday?['id'] as int?;
+
       // 2. Guardar en SQLite local
       await DatabaseHelper.instance.insertBirthday(Birthday(
+        backendBirthdayId: backendBirthdayId,
         name: name,
         birthDay: day,
         birthMonth: month,

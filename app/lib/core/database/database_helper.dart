@@ -17,7 +17,7 @@ class DatabaseHelper {
     final path = join(await getDatabasesPath(), 'cumple.db');
     return openDatabase(
       path,
-      version: 6,
+      version: 7,
       onCreate: (db, version) async {
         await _createBirthdaysTable(db);
         await _createUserSessionTable(db);
@@ -32,6 +32,7 @@ class DatabaseHelper {
         await _ensureColumn(db, 'birthdays', 'is_self',
             'INTEGER NOT NULL DEFAULT 0');
         await _ensureColumn(db, 'birthdays', 'owner_user_id', 'INTEGER');
+        await _ensureColumn(db, 'birthdays', 'backend_birthday_id', 'INTEGER');
       },
     );
   }
@@ -49,6 +50,7 @@ class DatabaseHelper {
       CREATE TABLE birthdays (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         owner_user_id INTEGER NOT NULL,
+        backend_birthday_id INTEGER,
         name TEXT NOT NULL,
         birth_day INTEGER NOT NULL,
         birth_month INTEGER NOT NULL,

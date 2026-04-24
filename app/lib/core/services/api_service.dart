@@ -99,4 +99,45 @@ class ApiService {
     final data = jsonDecode(res.body) as Map<String, dynamic>;
     return data['birthdays'] as List<dynamic>;
   }
+
+  Future<Map<String, dynamic>> updateBirthday({
+    required String token,
+    required int birthdayId,
+    required String name,
+    required int birthDay,
+    required int birthMonth,
+    int? birthYear,
+    String? gender,
+    String? interests,
+    String? notes,
+  }) async {
+    final res = await http
+        .put(Uri.parse('$_base/birthdays/$birthdayId'),
+            headers: _headers(token: token),
+            body: jsonEncode({
+              'name': name,
+              'birth_day': birthDay,
+              'birth_month': birthMonth,
+              'birth_year': birthYear,
+              'gender': gender,
+              'interests': interests,
+              'notes': notes,
+            }))
+        .timeout(_timeout);
+    _check(res);
+    return jsonDecode(res.body) as Map<String, dynamic>;
+  }
+
+  Future<void> deleteBirthday({
+    required String token,
+    required int birthdayId,
+  }) async {
+    final res = await http
+        .delete(
+          Uri.parse('$_base/birthdays/$birthdayId'),
+          headers: _headers(token: token),
+        )
+        .timeout(_timeout);
+    _check(res);
+  }
 }

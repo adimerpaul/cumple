@@ -1,5 +1,6 @@
 class Birthday {
   final int? id;
+  final int? backendBirthdayId;
   final String name;
   final int birthDay;
   final int birthMonth;
@@ -13,6 +14,7 @@ class Birthday {
 
   const Birthday({
     this.id,
+    this.backendBirthdayId,
     required this.name,
     required this.birthDay,
     required this.birthMonth,
@@ -48,6 +50,7 @@ class Birthday {
 
   Map<String, dynamic> toMap() => {
         if (id != null) 'id': id,
+        'backend_birthday_id': backendBirthdayId,
         'name': name,
         'birth_day': birthDay,
         'birth_month': birthMonth,
@@ -62,6 +65,7 @@ class Birthday {
 
   factory Birthday.fromMap(Map<String, dynamic> map) => Birthday(
         id: map['id'] as int?,
+        backendBirthdayId: map['backend_birthday_id'] as int?,
         name: map['name'] as String,
         birthDay: map['birth_day'] as int,
         birthMonth: map['birth_month'] as int,

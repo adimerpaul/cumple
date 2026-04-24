@@ -182,6 +182,70 @@ class _HomeTabState extends State<_HomeTab> {
     });
   }
 
+  Future<void> _editBirthday(Birthday birthday) async {
+    final updated = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _AddBirthdaySheet(
+        session: widget.session,
+        onApiError: widget.onApiError,
+        initialBirthday: birthday,
+      ),
+    );
+    if (updated == true) {
+      _load();
+    }
+  }
+
+  Future<void> _deleteBirthday(Birthday birthday) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Eliminar cumpleaños', style: GoogleFonts.poppins(fontWeight: FontWeight.w700)),
+        content: Text('¿Seguro que deseas eliminar a ${birthday.name}?', style: GoogleFonts.poppins()),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('Cancelar', style: GoogleFonts.poppins(color: AppColors.fg2)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text('Eliminar', style: GoogleFonts.poppins(color: Colors.red, fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
+    );
+
+    if (ok != true || birthday.id == null) return;
+
+    try {
+      if (birthday.backendBirthdayId != null) {
+        await ApiService.instance.deleteBirthday(
+          token: widget.session.laravelToken,
+          birthdayId: birthday.backendBirthdayId!,
+        );
+      }
+
+      await DatabaseHelper.instance.deleteBirthday(
+        birthday.id!,
+        ownerUserId: widget.session.laravelUserId,
+      );
+      _load();
+    } on ApiException catch (e) {
+      widget.onApiError(e);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message)),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No se pudo eliminar el cumpleaños')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final upcoming = _birthdays.where((b) => b.daysUntil <= 30).length;
@@ -274,7 +338,12 @@ class _HomeTabState extends State<_HomeTab> {
                       padding: const EdgeInsets.fromLTRB(16, 14, 16, 100),
                       itemCount: _filtered.length,
                       separatorBuilder: (_, __) => const SizedBox(height: 10),
-                      itemBuilder: (_, i) => _BirthdayCard(birthday: _filtered[i]),
+                      itemBuilder: (_, i) => _BirthdayCard(
+                        birthday: _filtered[i],
+                        onEdit: () => _editBirthday(_filtered[i]),
+                        onDelete: () => _deleteBirthday(_filtered[i]),
+                        showActions: _activeTab == 'all',
+                      ),
                     ),
         ),
       ],
@@ -309,9 +378,14 @@ const _addBirthdayInterests = [
 ];
 
 class _AddBirthdaySheet extends StatefulWidget {
-  const _AddBirthdaySheet({required this.session, required this.onApiError});
+  const _AddBirthdaySheet({
+    required this.session,
+    required this.onApiError,
+    this.initialBirthday,
+  });
   final UserSession session;
   final void Function(Object) onApiError;
+  final Birthday? initialBirthday;
 
   @override
   State<_AddBirthdaySheet> createState() => _AddBirthdaySheetState();
@@ -328,6 +402,22 @@ class _AddBirthdaySheetState extends State<_AddBirthdaySheet> {
   final Set<String> _selectedInterests = {};
   bool _loading = false;
   String? _error;
+
+  bool get _isEdit => widget.initialBirthday != null;
+
+  @override
+  void initState() {
+    super.initState();
+    final initial = widget.initialBirthday;
+    if (initial == null) return;
+    _nameCtrl.text = initial.name;
+    _dayCtrl.text = initial.birthDay.toString();
+    _monthCtrl.text = initial.birthMonth.toString();
+    _yearCtrl.text = initial.birthYear?.toString() ?? '';
+    _notesCtrl.text = initial.notes ?? '';
+    _gender = initial.gender;
+    _selectedInterests.addAll(initial.interestsList);
+  }
 
   @override
   void dispose() {
@@ -364,19 +454,44 @@ class _AddBirthdaySheetState extends State<_AddBirthdaySheet> {
     try {
       final interests = _selectedInterests.isEmpty ? null : _selectedInterests.join('||');
 
-      await ApiService.instance.createBirthday(
-        token: widget.session.laravelToken,
-        name: name,
-        birthDay: day,
-        birthMonth: month,
-        birthYear: year,
-        gender: _gender,
-        interests: interests,
-        notes: notes,
-      );
+      if (_isEdit) {
+        final current = widget.initialBirthday!;
+        if (current.backendBirthdayId != null) {
+          await ApiService.instance.updateBirthday(
+            token: widget.session.laravelToken,
+            birthdayId: current.backendBirthdayId!,
+            name: name,
+            birthDay: day,
+            birthMonth: month,
+            birthYear: year,
+            gender: _gender,
+            interests: interests,
+            notes: notes,
+          );
+        }
 
-      await DatabaseHelper.instance.insertBirthday(
-        Birthday(
+        if (current.id != null) {
+          await DatabaseHelper.instance.updateBirthday(
+            Birthday(
+              id: current.id,
+              backendBirthdayId: current.backendBirthdayId,
+              name: name,
+              birthDay: day,
+              birthMonth: month,
+              birthYear: year,
+              gender: _gender,
+              interests: interests,
+              notes: notes,
+              isSelf: current.isSelf,
+              notifyDaysBefore: current.notifyDaysBefore,
+              createdAt: current.createdAt,
+            ),
+            ownerUserId: widget.session.laravelUserId,
+          );
+        }
+      } else {
+        final data = await ApiService.instance.createBirthday(
+          token: widget.session.laravelToken,
           name: name,
           birthDay: day,
           birthMonth: month,
@@ -384,10 +499,26 @@ class _AddBirthdaySheetState extends State<_AddBirthdaySheet> {
           gender: _gender,
           interests: interests,
           notes: notes,
-          createdAt: DateTime.now().toIso8601String(),
-        ),
-        ownerUserId: widget.session.laravelUserId,
-      );
+        );
+
+        final backendBirthday = data['birthday'] as Map<String, dynamic>?;
+        final backendBirthdayId = backendBirthday?['id'] as int?;
+
+        await DatabaseHelper.instance.insertBirthday(
+          Birthday(
+            backendBirthdayId: backendBirthdayId,
+            name: name,
+            birthDay: day,
+            birthMonth: month,
+            birthYear: year,
+            gender: _gender,
+            interests: interests,
+            notes: notes,
+            createdAt: DateTime.now().toIso8601String(),
+          ),
+          ownerUserId: widget.session.laravelUserId,
+        );
+      }
 
       if (mounted) Navigator.pop(context, true);
     } on ApiException catch (e) {
@@ -439,7 +570,7 @@ class _AddBirthdaySheetState extends State<_AddBirthdaySheet> {
                         children: [
                           Expanded(
                             child: Text(
-                              'Nuevo cumpleaños',
+                              _isEdit ? 'Editar cumpleaños' : 'Nuevo cumpleaños',
                               style: GoogleFonts.poppins(
                                 fontSize: 22,
                                 fontWeight: FontWeight.w700,
@@ -640,7 +771,9 @@ class _AddBirthdaySheetState extends State<_AddBirthdaySheet> {
                                 )
                               : const Icon(Icons.cake_rounded, color: Colors.white, size: 18),
                           label: Text(
-                            _loading ? 'Registrando...' : 'Registrar',
+                            _loading
+                                ? (_isEdit ? 'Guardando...' : 'Registrando...')
+                                : (_isEdit ? 'Guardar cambios' : 'Registrar'),
                             style: GoogleFonts.poppins(
                               color: Colors.white,
                               fontSize: 14,
@@ -923,8 +1056,16 @@ class _NextBirthdayBanner extends StatelessWidget {
 }
 
 class _BirthdayCard extends StatelessWidget {
-  const _BirthdayCard({required this.birthday});
+  const _BirthdayCard({
+    required this.birthday,
+    required this.onEdit,
+    required this.onDelete,
+    this.showActions = true,
+  });
   final Birthday birthday;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
+  final bool showActions;
 
   @override
   Widget build(BuildContext context) {
@@ -956,7 +1097,39 @@ class _BirthdayCard extends StatelessWidget {
                   Text(_formatDate(birthday),
                       style: GoogleFonts.poppins(fontSize: 12, color: AppColors.fg2)),
                 ])),
-                const SizedBox(width: 12),
+                if (showActions) ...[
+                  PopupMenuButton<String>(
+                    icon: const Icon(Icons.more_vert_rounded, color: AppColors.fg3, size: 20),
+                    onSelected: (value) {
+                      if (value == 'edit') onEdit();
+                      if (value == 'delete') onDelete();
+                    },
+                    itemBuilder: (_) => [
+                      const PopupMenuItem<String>(
+                        value: 'edit',
+                        child: Row(
+                          children: [
+                            Icon(Icons.edit_rounded, size: 18),
+                            SizedBox(width: 8),
+                            Text('Editar'),
+                          ],
+                        ),
+                      ),
+                      const PopupMenuItem<String>(
+                        value: 'delete',
+                        child: Row(
+                          children: [
+                            Icon(Icons.delete_outline_rounded, size: 18, color: Colors.red),
+                            SizedBox(width: 8),
+                            Text('Eliminar', style: TextStyle(color: Colors.red)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(width: 4),
+                ] else
+                  const SizedBox(width: 12),
                 _CountdownPill(days: days, isToday: isToday, isSoon: isSoon),
               ],
             ),
