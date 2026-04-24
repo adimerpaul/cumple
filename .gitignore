@@ -46,3 +46,15 @@ app.*.map.json
 CLAUDE.md
 AGENTS.md
 /copilot
+
+# Variables de entorno Flutter (nunca subir al repo)
+app/.env
+app/.env.production
+
+# Clave de servicio Firebase para Laravel
+back/storage/app/firebase/serviceAccountKey.json
+
+# Laravel
+back/.env
+back/storage/logs/
+back/bootstrap/cache/
