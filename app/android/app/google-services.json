@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "552367194201",
+    "project_id": "cumple-ee35f",
+    "storage_bucket": "cumple-ee35f.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:552367194201:android:9039c077bb2cd3fc68f148",
+        "android_client_info": {
+          "package_name": "com.example.cumple"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "552367194201-ruruekup578d4f978mhrrf74hhfbhtkr.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.cumple",
+            "certificate_hash": "7587739314ad3568f7fe764e389d333ab93cf7e2"
+          }
+        },
+        {
+          "client_id": "552367194201-dbuq49tfaa243i9qrj196ddt4snciru7.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAa9PFh1y5XIqnXeAPv3_7KsH6iHtYJTfA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "552367194201-dbuq49tfaa243i9qrj196ddt4snciru7.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
