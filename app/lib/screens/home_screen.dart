@@ -56,7 +56,7 @@ class _HomeScreenState extends State<HomeScreen> {
             session: widget.session,
             onApiError: _onApiError,
           ),
-          _CalendarTab(),
+          _CalendarTab(session: widget.session, onApiError: _onApiError),
           _StatsTab(),
           _ProfileTab(session: widget.session, onApiError: _onApiError),
         ],
@@ -1240,12 +1240,372 @@ class _EmptyState extends StatelessWidget {
 
 // ── Placeholder tabs ─────────────────────────────────────────
 
-class _CalendarTab extends StatelessWidget {
+class _CalendarTab extends StatefulWidget {
+  const _CalendarTab({required this.session, required this.onApiError});
+  final UserSession session;
+  final void Function(Object) onApiError;
+
   @override
-  Widget build(BuildContext context) => Column(children: [
-    _BlueHeader(title: 'Calendario'),
-    const Expanded(child: Center(child: Text('📅  Próximamente', style: TextStyle(fontSize: 18)))),
-  ]);
+  State<_CalendarTab> createState() => _CalendarTabState();
+}
+
+class _CalendarTabState extends State<_CalendarTab> {
+  static const _months = [
+    'Enero',
+    'Febrero',
+    'Marzo',
+    'Abril',
+    'Mayo',
+    'Junio',
+    'Julio',
+    'Agosto',
+    'Septiembre',
+    'Octubre',
+    'Noviembre',
+    'Diciembre',
+  ];
+
+  static const _weekDays = ['D', 'L', 'M', 'M', 'J', 'V', 'S'];
+
+  List<Birthday> _all = [];
+  late int _year;
+  late int _month;
+
+  @override
+  void initState() {
+    super.initState();
+    final now = DateTime.now();
+    _year = now.year;
+    _month = now.month;
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final rows = await DatabaseHelper.instance.getAllBirthdays(
+        ownerUserId: widget.session.laravelUserId,
+      );
+      if (!mounted) return;
+      setState(() => _all = rows);
+    } catch (e) {
+      widget.onApiError(e);
+    }
+  }
+
+  void _prevMonth() {
+    setState(() {
+      if (_month == 1) {
+        _month = 12;
+        _year--;
+      } else {
+        _month--;
+      }
+    });
+  }
+
+  void _nextMonth() {
+    setState(() {
+      if (_month == 12) {
+        _month = 1;
+        _year++;
+      } else {
+        _month++;
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final monthBirthdays = _all.where((b) => b.birthMonth == _month).toList()
+      ..sort((a, b) => a.birthDay.compareTo(b.birthDay));
+    final now = DateTime.now();
+    final daysInMonth = DateTime(_year, _month + 1, 0).day;
+    final firstWeekday = DateTime(_year, _month, 1).weekday % 7;
+    final birthdayDays = monthBirthdays.map((b) => b.birthDay).toSet();
+
+    return Column(
+      children: [
+        Container(
+          width: double.infinity,
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [AppColors.blueDark, AppColors.blue],
+            ),
+          ),
+          padding: EdgeInsets.fromLTRB(20, MediaQuery.of(context).padding.top + 16, 20, 24),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('Calendario',
+                style: GoogleFonts.poppins(color: Colors.white, fontSize: 31 / 1.55, fontWeight: FontWeight.w700)),
+            const SizedBox(height: 2),
+            Text('${monthBirthdays.length} cumpleaños en ${_months[_month - 1]}',
+                style: GoogleFonts.poppins(color: Colors.white.withOpacity(0.72), fontSize: 13)),
+          ]),
+        ),
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 100),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppColors.white,
+                    borderRadius: BorderRadius.circular(18),
+                    boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 10, offset: const Offset(0, 2))],
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          _MonthNavBtn(icon: Icons.chevron_left_rounded, onTap: _prevMonth),
+                          Expanded(
+                            child: Text(
+                              '${_months[_month - 1]} $_year',
+                              textAlign: TextAlign.center,
+                              style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w700),
+                            ),
+                          ),
+                          _MonthNavBtn(icon: Icons.chevron_right_rounded, onTap: _nextMonth),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+                      Row(
+                        children: _weekDays
+                            .map((d) => Expanded(
+                                  child: Text(
+                                    d,
+                                    textAlign: TextAlign.center,
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.fg3,
+                                    ),
+                                  ),
+                                ))
+                            .toList(),
+                      ),
+                      const SizedBox(height: 8),
+                      GridView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: firstWeekday + daysInMonth,
+                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 7,
+                          childAspectRatio: 1.05,
+                        ),
+                        itemBuilder: (_, i) {
+                          if (i < firstWeekday) return const SizedBox.shrink();
+                          final day = i - firstWeekday + 1;
+                          final isToday = day == now.day && _month == now.month && _year == now.year;
+                          final isBirthday = birthdayDays.contains(day);
+
+                          return Center(
+                            child: Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                Container(
+                                  width: 38,
+                                  height: 38,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: isToday
+                                        ? AppColors.blue
+                                        : isBirthday
+                                            ? AppColors.blueLight
+                                            : Colors.transparent,
+                                  ),
+                                  alignment: Alignment.center,
+                                  child: Text(
+                                    '$day',
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 15,
+                                      fontWeight: isToday || isBirthday ? FontWeight.w700 : FontWeight.w500,
+                                      color: isToday
+                                          ? Colors.white
+                                          : isBirthday
+                                              ? AppColors.blue
+                                              : AppColors.fg,
+                                    ),
+                                  ),
+                                ),
+                                if (isBirthday && !isToday)
+                                  const Positioned(
+                                    bottom: 3,
+                                    child: CircleAvatar(radius: 2, backgroundColor: AppColors.blue),
+                                  ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  'CUMPLEAÑOS EN ${_months[_month - 1].toUpperCase()}',
+                  style: GoogleFonts.poppins(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.fg2,
+                    letterSpacing: .08,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                if (monthBirthdays.isEmpty)
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: AppColors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: Text(
+                      'No hay cumpleaños este mes',
+                      style: GoogleFonts.poppins(color: AppColors.fg2, fontSize: 13),
+                    ),
+                  )
+                else
+                  ...monthBirthdays.map((b) => Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: _CalendarBirthdayTile(birthday: b),
+                      )),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _MonthNavBtn extends StatelessWidget {
+  const _MonthNavBtn({required this.icon, required this.onTap});
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(10),
+      onTap: onTap,
+      child: Container(
+        width: 34,
+        height: 34,
+        decoration: BoxDecoration(
+          color: AppColors.blueLight,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Icon(icon, color: AppColors.blue),
+      ),
+    );
+  }
+}
+
+class _CalendarBirthdayTile extends StatelessWidget {
+  const _CalendarBirthdayTile({required this.birthday});
+  final Birthday birthday;
+
+  @override
+  Widget build(BuildContext context) {
+    final days = birthday.daysUntil;
+    final baseDate = '${birthday.birthDay} ${_shortMonth(birthday.birthMonth)}';
+    final subtitle = birthday.birthYear != null
+        ? '$baseDate ${birthday.birthYear} · ${birthday.nextAge ?? ''} años'
+        : baseDate;
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 2))],
+      ),
+      child: Row(
+        children: [
+          _BirthdayAvatar(birthday: birthday, size: 44),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  birthday.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.fg),
+                ),
+                Text(
+                  subtitle,
+                  style: GoogleFonts.poppins(fontSize: 12, color: AppColors.fg2),
+                ),
+                if (birthday.interestsList.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Wrap(
+                    spacing: 6,
+                    children: birthday.interestsList.take(2).map((tag) {
+                      return Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: AppColors.blueLight,
+                          borderRadius: BorderRadius.circular(99),
+                        ),
+                        child: Text(
+                          tag,
+                          style: GoogleFonts.poppins(fontSize: 10, color: AppColors.blue, fontWeight: FontWeight.w500),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          Container(
+            width: 62,
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            decoration: BoxDecoration(
+              color: days == 0 ? AppColors.blue : const Color(0xFFFDEAB7),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              children: [
+                Text(
+                  days == 0 ? 'HOY' : '$days',
+                  style: GoogleFonts.poppins(
+                    fontSize: 20,
+                    height: 1,
+                    fontWeight: FontWeight.w800,
+                    color: days == 0 ? Colors.white : const Color(0xFFD97706),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  days == 0 ? '' : 'DÍAS',
+                  style: GoogleFonts.poppins(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: days == 0 ? Colors.white : const Color(0xFFD97706),
+                    letterSpacing: .04,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static String _shortMonth(int month) {
+    const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+    return months[month - 1];
+  }
 }
 
 class _StatsTab extends StatelessWidget {
