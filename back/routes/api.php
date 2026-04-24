@@ -15,6 +15,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Cumpleaños
     Route::get('/birthdays',            [BirthdayController::class, 'index']);
     Route::post('/birthdays',           [BirthdayController::class, 'store']);
+    Route::get('/birthdays/self/share-link', [BirthdayController::class, 'selfShareLink']);
     Route::put('/birthdays/{birthday}', [BirthdayController::class, 'update']);
     Route::delete('/birthdays/{birthday}', [BirthdayController::class, 'destroy']);
 });

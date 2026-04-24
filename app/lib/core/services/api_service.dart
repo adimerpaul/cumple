@@ -100,6 +100,17 @@ class ApiService {
     return data['birthdays'] as List<dynamic>;
   }
 
+  Future<Map<String, dynamic>> getSelfBirthdayShareLink(String token) async {
+    final res = await http
+        .get(
+          Uri.parse('$_base/birthdays/self/share-link'),
+          headers: _headers(token: token),
+        )
+        .timeout(_timeout);
+    _check(res);
+    return jsonDecode(res.body) as Map<String, dynamic>;
+  }
+
   Future<Map<String, dynamic>> updateBirthday({
     required String token,
     required int birthdayId,

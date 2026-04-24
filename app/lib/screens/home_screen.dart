@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../app_colors.dart';
 import '../core/services/auth_service.dart';
 import '../core/services/api_service.dart';
@@ -1243,10 +1244,42 @@ class _StatsTab extends StatelessWidget {
 
 // ── Profile Tab ────────────────────────────────────────────
 
-class _ProfileTab extends StatelessWidget {
+class _ProfileTab extends StatefulWidget {
   const _ProfileTab({required this.session, required this.onApiError});
   final UserSession session;
   final void Function(Object) onApiError;
+
+  @override
+  State<_ProfileTab> createState() => _ProfileTabState();
+}
+
+class _ProfileTabState extends State<_ProfileTab> {
+  int _total = 0;
+  int _upcoming = 0;
+  int _thisMonth = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSummary();
+  }
+
+  Future<void> _loadSummary() async {
+    try {
+      final all = await DatabaseHelper.instance.getAllBirthdays(
+        ownerUserId: widget.session.laravelUserId,
+      );
+      final month = DateTime.now().month;
+      if (!mounted) return;
+      setState(() {
+        _total = all.length;
+        _upcoming = all.where((b) => b.daysUntil <= 30).length;
+        _thisMonth = all.where((b) => b.birthMonth == month).length;
+      });
+    } catch (e) {
+      widget.onApiError(e);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1256,7 +1289,8 @@ class _ProfileTab extends StatelessWidget {
           width: double.infinity,
           decoration: const BoxDecoration(
             gradient: LinearGradient(
-              begin: Alignment.topLeft, end: Alignment.bottomRight,
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
               colors: [AppColors.blueDark, AppColors.blue],
             ),
           ),
@@ -1266,41 +1300,117 @@ class _ProfileTab extends StatelessWidget {
                 style: GoogleFonts.poppins(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w700)),
             const SizedBox(height: 20),
             Row(children: [
-              _UserAvatar(session: session, size: 64),
+              _UserAvatar(session: widget.session, size: 64),
               const SizedBox(width: 16),
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(session.name,
+                Text(widget.session.name,
                     style: GoogleFonts.poppins(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w700)),
-                Text(session.email,
+                Text(widget.session.email,
                     style: GoogleFonts.poppins(color: Colors.white.withOpacity(0.7), fontSize: 13)),
               ])),
             ]),
           ]),
         ),
         Expanded(
-          child: Padding(
+          child: SingleChildScrollView(
             padding: const EdgeInsets.all(16),
-            child: Column(children: [
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: () => _confirmSignOut(context),
-                  icon: const Icon(Icons.logout, color: Colors.red),
-                  label: Text('Cerrar sesión',
-                      style: GoogleFonts.poppins(color: Colors.red, fontWeight: FontWeight.w600)),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    side: const BorderSide(color: Color(0xFFFEE2E2), width: 2),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(99)),
+            child: Column(
+              children: [
+                _ProfileCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Resumen',
+                          style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.fg)),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          _SummaryItem(value: _total, label: 'Registrados'),
+                          _SummaryDivider(),
+                          _SummaryItem(value: _upcoming, label: 'Próximos'),
+                          _SummaryDivider(),
+                          _SummaryItem(value: _thisMonth, label: 'Este mes'),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
-              ),
-            ]),
+                const SizedBox(height: 12),
+                _ProfileCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Exportar',
+                          style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.fg)),
+                      const SizedBox(height: 2),
+                      Text('Guarda tus datos fácilmente',
+                          style: GoogleFonts.poppins(fontSize: 12, color: AppColors.fg2)),
+                      const SizedBox(height: 12),
+                      _ExportRow(
+                        icon: Icons.calendar_month_rounded,
+                        iconBg: const Color(0xFF2563FF),
+                        title: 'Exportar mi fecha',
+                        subtitle: 'Compartir por WhatsApp',
+                        onTap: () => _shareMyBirthday(context),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () => _confirmSignOut(context),
+                    icon: const Icon(Icons.logout, color: Colors.red),
+                    label: Text('Cerrar sesión',
+                        style: GoogleFonts.poppins(color: Colors.red, fontWeight: FontWeight.w600)),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      side: const BorderSide(color: Color(0xFFFEE2E2), width: 2),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      backgroundColor: Colors.white,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ],
     );
+  }
+
+  Future<void> _shareMyBirthday(BuildContext context) async {
+    try {
+      final data = await ApiService.instance.getSelfBirthdayShareLink(widget.session.laravelToken);
+      final url = data['url'] as String?;
+      if (url == null || url.isEmpty) {
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No se pudo generar el enlace')),
+        );
+        return;
+      }
+
+      final message = 'Te comparto mi fecha de cumpleaños para que la importes en Cumple:\n$url';
+      final waUrl = Uri.parse('https://wa.me/?text=${Uri.encodeComponent(message)}');
+      final opened = await launchUrl(waUrl, mode: LaunchMode.externalApplication);
+
+      if (!opened) {
+        await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+      }
+    } on ApiException catch (e) {
+      widget.onApiError(e);
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message)),
+      );
+    } catch (_) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No se pudo compartir por WhatsApp')),
+      );
+    }
   }
 
   Future<void> _confirmSignOut(BuildContext context) async {
@@ -1318,9 +1428,107 @@ class _ProfileTab extends StatelessWidget {
       ),
     );
     if (ok == true) {
-      await AuthService.instance.signOut(session.laravelToken);
+      await AuthService.instance.signOut(widget.session.laravelToken);
       handleUnauthorized();
     }
+  }
+}
+
+class _ProfileCard extends StatelessWidget {
+  const _ProfileCard({required this.child});
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 12, offset: const Offset(0, 2))],
+      ),
+      child: child,
+    );
+  }
+}
+
+class _SummaryItem extends StatelessWidget {
+  const _SummaryItem({required this.value, required this.label});
+  final int value;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Column(
+        children: [
+          Text('$value',
+              style: GoogleFonts.poppins(color: AppColors.blue, fontSize: 32, fontWeight: FontWeight.w800, height: 1)),
+          const SizedBox(height: 4),
+          Text(label, style: GoogleFonts.poppins(fontSize: 12, color: AppColors.fg2)),
+        ],
+      ),
+    );
+  }
+}
+
+class _SummaryDivider extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(width: 1, height: 44, color: AppColors.border);
+  }
+}
+
+class _ExportRow extends StatelessWidget {
+  const _ExportRow({
+    required this.icon,
+    required this.iconBg,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+  final IconData icon;
+  final Color iconBg;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(14),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: AppColors.bg,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(color: iconBg, borderRadius: BorderRadius.circular(12)),
+              child: Icon(icon, color: Colors.white, size: 22),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.fg)),
+                  Text(subtitle, style: GoogleFonts.poppins(fontSize: 12, color: AppColors.fg2)),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right_rounded, color: AppColors.fg3),
+          ],
+        ),
+      ),
+    );
   }
 }
 
