@@ -156,6 +156,7 @@ class _HomeTabState extends State<_HomeTab> {
   void initState() {
     super.initState();
     _load();
+    _syncFromBackend();
   }
 
   Future<void> _load() async {
@@ -166,6 +167,19 @@ class _HomeTabState extends State<_HomeTab> {
       if (mounted) setState(() { _birthdays = list; _applyFilter(); _loading = false; });
     } catch (e) {
       widget.onApiError(e);
+    }
+  }
+
+  Future<void> _syncFromBackend() async {
+    try {
+      await AuthService.instance.syncBirthdaysFromBackend(widget.session);
+      await _load();
+    } on ApiException catch (e) {
+      if (e.isUnauthorized) {
+        widget.onApiError(e);
+      }
+    } catch (_) {
+      // Si no hay internet, mantenemos datos locales.
     }
   }
 
@@ -1353,6 +1367,14 @@ class _ProfileTabState extends State<_ProfileTab> {
                         subtitle: 'Compartir por WhatsApp',
                         onTap: () => _shareMyBirthday(context),
                       ),
+                      const SizedBox(height: 10),
+                      _ExportRow(
+                        icon: Icons.list_alt_rounded,
+                        iconBg: const Color(0xFF7C3AED),
+                        title: 'Exportar lista',
+                        subtitle: 'Seleccionar cumpleaños',
+                        onTap: () => _openExportListSheet(context),
+                      ),
                     ],
                   ),
                 ),
@@ -1382,7 +1404,7 @@ class _ProfileTabState extends State<_ProfileTab> {
 
   Future<void> _shareMyBirthday(BuildContext context) async {
     try {
-      final data = await ApiService.instance.getSelfBirthdayShareLink(widget.session.laravelToken);
+      final data = await ApiService.instance.createSelfBirthdayShareCode(widget.session.laravelToken);
       final url = data['url'] as String?;
       if (url == null || url.isEmpty) {
         if (!context.mounted) return;
@@ -1411,6 +1433,194 @@ class _ProfileTabState extends State<_ProfileTab> {
         const SnackBar(content: Text('No se pudo compartir por WhatsApp')),
       );
     }
+  }
+
+  Future<void> _openExportListSheet(BuildContext context) async {
+    final birthdays = await DatabaseHelper.instance.getAllBirthdays(
+      ownerUserId: widget.session.laravelUserId,
+    );
+    if (!context.mounted) return;
+
+    if (birthdays.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No tienes cumpleaños para exportar')),
+      );
+      return;
+    }
+
+    final selected = <int>{for (final b in birthdays) if (b.id != null) b.id!};
+    bool sharing = false;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setModal) {
+            final allSelected = selected.length == birthdays.where((b) => b.id != null).length;
+            return Container(
+              constraints: BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.82),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              child: SafeArea(
+                top: false,
+                child: Column(
+                  children: [
+                    const SizedBox(height: 10),
+                    Container(width: 48, height: 5, decoration: BoxDecoration(color: AppColors.border, borderRadius: BorderRadius.circular(99))),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text('Exportar lista',
+                                style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.w700, color: AppColors.fg)),
+                          ),
+                          IconButton(
+                            onPressed: () => Navigator.pop(ctx),
+                            icon: const Icon(Icons.close_rounded, color: AppColors.fg3),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Row(
+                        children: [
+                          Checkbox(
+                            value: allSelected,
+                            onChanged: (v) {
+                              setModal(() {
+                                if (v == true) {
+                                  selected
+                                    ..clear()
+                                    ..addAll([for (final b in birthdays) if (b.id != null) b.id!]);
+                                } else {
+                                  selected.clear();
+                                }
+                              });
+                            },
+                          ),
+                          Text('Seleccionar todo',
+                              style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.fg)),
+                        ],
+                      ),
+                    ),
+                    Expanded(
+                      child: ListView.builder(
+                        itemCount: birthdays.length,
+                        itemBuilder: (_, i) {
+                          final b = birthdays[i];
+                          final id = b.id;
+                          if (id == null) return const SizedBox.shrink();
+                          final checked = selected.contains(id);
+                          return CheckboxListTile(
+                            value: checked,
+                            onChanged: (v) {
+                              setModal(() {
+                                if (v == true) {
+                                  selected.add(id);
+                                } else {
+                                  selected.remove(id);
+                                }
+                              });
+                            },
+                            title: Text(
+                              b.name,
+                              style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.fg),
+                            ),
+                            subtitle: Text(
+                              '${b.birthDay}/${b.birthMonth}${b.birthYear != null ? '/${b.birthYear}' : ''}',
+                              style: GoogleFonts.poppins(fontSize: 12, color: AppColors.fg2),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                      child: SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: sharing || selected.isEmpty
+                              ? null
+                              : () async {
+                                  setModal(() => sharing = true);
+                                  try {
+                                    final chosen = birthdays
+                                        .where((b) => b.id != null && selected.contains(b.id))
+                                        .toList();
+                                    final payload = chosen
+                                        .map((b) => {
+                                              'name': b.name,
+                                              'birth_day': b.birthDay,
+                                              'birth_month': b.birthMonth,
+                                              'birth_year': b.birthYear,
+                                              'gender': b.gender,
+                                              'interests': b.interests,
+                                              'notes': b.notes,
+                                            })
+                                        .toList();
+
+                                    final data = await ApiService.instance.createBirthdayListShareCode(
+                                      token: widget.session.laravelToken,
+                                      birthdays: payload,
+                                    );
+                                    final url = data['url'] as String?;
+                                    if (url == null || url.isEmpty) {
+                                      throw Exception('No se pudo generar el enlace');
+                                    }
+                                    final message = 'Te comparto una lista de cumpleaños para importarla en Cumple:\n$url';
+                                    final waUrl = Uri.parse('https://wa.me/?text=${Uri.encodeComponent(message)}');
+                                    final opened = await launchUrl(waUrl, mode: LaunchMode.externalApplication);
+                                    if (!opened) {
+                                      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+                                    }
+                                    if (ctx.mounted) Navigator.pop(ctx);
+                                  } on ApiException catch (e) {
+                                    widget.onApiError(e);
+                                    if (!ctx.mounted) return;
+                                    ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text(e.message)));
+                                  } catch (_) {
+                                    if (!ctx.mounted) return;
+                                    ScaffoldMessenger.of(ctx).showSnackBar(
+                                      const SnackBar(content: Text('No se pudo compartir la lista')),
+                                    );
+                                  } finally {
+                                    if (ctx.mounted) setModal(() => sharing = false);
+                                  }
+                                },
+                          icon: sharing
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white),
+                                )
+                              : const Icon(Icons.share_rounded, color: Colors.white),
+                          label: Text(
+                            sharing ? 'Generando...' : 'Compartir seleccionados (${selected.length})',
+                            style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.w700),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.blue,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(99)),
+                            elevation: 0,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   Future<void> _confirmSignOut(BuildContext context) async {

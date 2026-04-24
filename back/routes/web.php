@@ -1,36 +1,26 @@
 <?php
 
-use Illuminate\Http\Request;
+use App\Models\ShareCode;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
     return view('welcome');
 });
 
-Route::get('/share/birthday', function (Request $request) {
-    if (!$request->hasValidSignature()) {
-        abort(403, 'Enlace inválido o expirado');
+Route::get('/share/c/{code}', function (string $code) {
+    $shareCode = ShareCode::where('code', strtoupper($code))->first();
+    if (!$shareCode || $shareCode->expires_at === null || $shareCode->expires_at->isPast()) {
+        abort(410, 'Código inválido o expirado');
     }
 
-    $name = (string) $request->query('name', '');
-    $birthDay = (int) $request->query('birth_day');
-    $birthMonth = (int) $request->query('birth_month');
-    $birthYear = $request->query('birth_year');
-    $gender = (string) $request->query('gender', '');
-    $interests = (string) $request->query('interests', '');
-    $notes = (string) $request->query('notes', '');
-
-    $deepLink = 'cumple://birthday-import?' . http_build_query([
-        'name' => $name,
-        'birth_day' => $birthDay,
-        'birth_month' => $birthMonth,
-        'birth_year' => $birthYear,
-        'gender' => $gender,
-        'interests' => $interests,
-        'notes' => $notes,
+    $deepLink = 'cumple://share-import?' . http_build_query([
+        'code' => strtoupper($code),
     ]);
 
-    $safeName = e($name);
+    $payload = $shareCode->payload ?? [];
+    $birthdays = $payload['birthdays'] ?? [];
+    $firstName = isset($birthdays[0]['name']) ? (string) $birthdays[0]['name'] : 'contacto';
+    $safeName = e($firstName);
     $safeDeepLink = e($deepLink);
 
     return response(<<<HTML
@@ -51,8 +41,8 @@ Route::get('/share/birthday', function (Request $request) {
 <body>
   <div class="card">
     <h1>Importar cumpleaños</h1>
-    <p>Te compartieron el cumpleaños de <strong>{$safeName}</strong>.</p>
-    <p>Toca el botón para abrir Cumple e importar la fecha.</p>
+    <p>Te compartieron cumpleaños desde <strong>{$safeName}</strong>.</p>
+    <p>Toca el botón para abrir Cumple e importar los datos.</p>
     <a class="btn" href="{$safeDeepLink}">Abrir en la app</a>
   </div>
   <script>

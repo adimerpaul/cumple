@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Models\Birthday;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\URL;
 
 class BirthdayController extends Controller
 {
@@ -82,34 +81,6 @@ class BirthdayController extends Controller
 
         $birthday->delete();
         return response()->json(['message' => 'Eliminado']);
-    }
-
-    public function selfShareLink(Request $request): JsonResponse
-    {
-        $selfBirthday = $request->user()
-            ->birthdays()
-            ->where('is_self', true)
-            ->first();
-
-        if (!$selfBirthday) {
-            return response()->json(['message' => 'Primero registra tu propio cumpleaños'], 404);
-        }
-
-        $url = URL::temporarySignedRoute(
-            'share.birthday',
-            now()->addDays(30),
-            [
-                'name' => $selfBirthday->name,
-                'birth_day' => $selfBirthday->birth_day,
-                'birth_month' => $selfBirthday->birth_month,
-                'birth_year' => $selfBirthday->birth_year,
-                'gender' => $selfBirthday->gender,
-                'interests' => $selfBirthday->interests,
-                'notes' => $selfBirthday->notes,
-            ]
-        );
-
-        return response()->json(['url' => $url]);
     }
 
     private function markProfileComplete($user): void

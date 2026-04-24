@@ -7,6 +7,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'app_colors.dart';
 import 'core/database/database_helper.dart';
+import 'core/services/api_service.dart';
 import 'firebase_options.dart';
 import 'models/birthday.dart';
 import 'core/services/session_service.dart';
@@ -70,57 +71,157 @@ class _CumpleAppState extends State<CumpleApp> {
   }
 
   Future<void> _handleImportLink(Uri? uri) async {
-    if (uri == null || uri.scheme != 'cumple' || uri.host != 'birthday-import') return;
+    try {
+      if (uri == null || uri.scheme != 'cumple') return;
 
-    final session = await SessionService.instance.getSession();
-    if (session == null) return;
+      final session = await SessionService.instance.getSession();
+      if (session == null) return;
 
-    final name = uri.queryParameters['name']?.trim() ?? '';
-    final day = int.tryParse(uri.queryParameters['birth_day'] ?? '');
-    final month = int.tryParse(uri.queryParameters['birth_month'] ?? '');
-    final yearRaw = uri.queryParameters['birth_year'];
-    final year = (yearRaw == null || yearRaw.isEmpty) ? null : int.tryParse(yearRaw);
-    final gender = uri.queryParameters['gender'];
-    final interests = uri.queryParameters['interests'];
-    final notes = uri.queryParameters['notes'];
+      if (uri.host == 'share-import') {
+        final code = uri.queryParameters['code']?.trim() ?? '';
+        if (code.isEmpty) return;
 
-    if (name.isEmpty || day == null || month == null) return;
-    if (day < 1 || day > 31 || month < 1 || month > 12) return;
+        final data = await ApiService.instance.resolveShareCode(code);
+        final payload = data['payload'] as Map<String, dynamic>? ?? const {};
+        final birthdays = (payload['birthdays'] as List<dynamic>? ?? const []);
+        if (birthdays.isEmpty) return;
 
+        for (final raw in birthdays) {
+          if (raw is! Map<String, dynamic>) continue;
+          final name = (raw['name'] as String? ?? '').trim();
+          final day = _toInt(raw['birth_day']);
+          final month = _toInt(raw['birth_month']);
+          final year = _toInt(raw['birth_year']);
+          final gender = raw['gender'] as String?;
+          final interests = raw['interests'] as String?;
+          final notes = raw['notes'] as String?;
+
+          if (name.isEmpty || day == null || month == null) continue;
+          if (day < 1 || day > 31 || month < 1 || month > 12) continue;
+
+          await _importBirthdayForSession(
+            session: session,
+            name: name,
+            birthDay: day,
+            birthMonth: month,
+            birthYear: year,
+            gender: (gender?.isEmpty ?? true) ? null : gender,
+            interests: (interests?.isEmpty ?? true) ? null : interests,
+            notes: (notes?.isEmpty ?? true) ? null : notes,
+          );
+        }
+
+        navigatorKey.currentState?.pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => HomeScreen(session: session)),
+          (_) => false,
+        );
+        return;
+      }
+
+      // Compatibilidad con enlaces antiguos
+      if (uri.host == 'birthday-import') {
+        final name = uri.queryParameters['name']?.trim() ?? '';
+        final day = _toInt(uri.queryParameters['birth_day']);
+        final month = _toInt(uri.queryParameters['birth_month']);
+        final yearRaw = uri.queryParameters['birth_year'];
+        final year = (yearRaw == null || yearRaw.isEmpty) ? null : _toInt(yearRaw);
+        final gender = uri.queryParameters['gender'];
+        final interests = uri.queryParameters['interests'];
+        final notes = uri.queryParameters['notes'];
+
+        if (name.isEmpty || day == null || month == null) return;
+        if (day < 1 || day > 31 || month < 1 || month > 12) return;
+
+        await _importBirthdayForSession(
+          session: session,
+          name: name,
+          birthDay: day,
+          birthMonth: month,
+          birthYear: year,
+          gender: (gender?.isEmpty ?? true) ? null : gender,
+          interests: (interests?.isEmpty ?? true) ? null : interests,
+          notes: (notes?.isEmpty ?? true) ? null : notes,
+        );
+
+        navigatorKey.currentState?.pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => HomeScreen(session: session)),
+          (_) => false,
+        );
+      }
+    } on ApiException catch (e) {
+      final ctx = navigatorKey.currentContext;
+      if (ctx != null) {
+        ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    } on FormatException {
+      final ctx = navigatorKey.currentContext;
+      if (ctx != null) {
+        ScaffoldMessenger.of(ctx).showSnackBar(
+          const SnackBar(content: Text('El enlace de importación es inválido')),
+        );
+      }
+    }
+  }
+
+  Future<void> _importBirthdayForSession({
+    required UserSession session,
+    required String name,
+    required int birthDay,
+    required int birthMonth,
+    int? birthYear,
+    String? gender,
+    String? interests,
+    String? notes,
+  }) async {
     final existing = await DatabaseHelper.instance.getAllBirthdays(
       ownerUserId: session.laravelUserId,
     );
     final alreadyImported = existing.any((b) =>
+        !b.isSelf &&
         b.name.toLowerCase() == name.toLowerCase() &&
-        b.birthDay == day &&
-        b.birthMonth == month &&
-        b.birthYear == year);
-    if (alreadyImported) {
-      navigatorKey.currentState?.pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => HomeScreen(session: session)),
-        (_) => false,
-      );
-      return;
-    }
+        b.birthDay == birthDay &&
+        b.birthMonth == birthMonth &&
+        b.birthYear == birthYear);
+    if (alreadyImported) return;
+
+    final created = await ApiService.instance.createBirthday(
+      token: session.laravelToken,
+      name: name,
+      birthDay: birthDay,
+      birthMonth: birthMonth,
+      birthYear: birthYear,
+      gender: gender,
+      interests: interests,
+      notes: notes,
+      isSelf: false,
+    );
+
+    final birthday = created['birthday'] as Map<String, dynamic>?;
+    final backendId = _toInt(birthday?['id']);
 
     await DatabaseHelper.instance.insertBirthday(
       Birthday(
+        backendBirthdayId: backendId,
         name: name,
-        birthDay: day,
-        birthMonth: month,
-        birthYear: year,
-        gender: (gender?.isEmpty ?? true) ? null : gender,
-        interests: (interests?.isEmpty ?? true) ? null : interests,
-        notes: (notes?.isEmpty ?? true) ? null : notes,
-        createdAt: DateTime.now().toIso8601String(),
+        birthDay: birthDay,
+        birthMonth: birthMonth,
+        birthYear: birthYear,
+        gender: gender,
+        interests: interests,
+        notes: notes,
+        isSelf: false,
+        createdAt: (birthday?['created_at'] as String?) ?? DateTime.now().toIso8601String(),
       ),
       ownerUserId: session.laravelUserId,
     );
+  }
 
-    navigatorKey.currentState?.pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => HomeScreen(session: session)),
-      (_) => false,
-    );
+  int? _toInt(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is String) return int.tryParse(value);
+    return null;
   }
 
   @override

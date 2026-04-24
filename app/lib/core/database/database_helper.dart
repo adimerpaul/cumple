@@ -133,4 +133,24 @@ class DatabaseHelper {
         where: 'id = ? AND owner_user_id = ?',
         whereArgs: [id, ownerUserId],
       );
+
+  Future<void> replaceBirthdaysForOwner({
+    required int ownerUserId,
+    required List<Birthday> birthdays,
+  }) async {
+    final database = await db;
+    await database.transaction((txn) async {
+      await txn.delete(
+        'birthdays',
+        where: 'owner_user_id = ?',
+        whereArgs: [ownerUserId],
+      );
+
+      for (final birthday in birthdays) {
+        final data = birthday.toMap()..['owner_user_id'] = ownerUserId;
+        data.remove('id');
+        await txn.insert('birthdays', data);
+      }
+    });
+  }
 }

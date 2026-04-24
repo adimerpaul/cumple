@@ -2,7 +2,9 @@ import 'dart:convert';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
+import '../../models/birthday.dart';
 import '../../models/user_session.dart';
+import '../database/database_helper.dart';
 import 'api_service.dart';
 import 'session_service.dart';
 
@@ -45,6 +47,7 @@ class AuthService {
     );
 
     await SessionService.instance.saveSession(session);
+    await syncBirthdaysFromBackend(session);
     return session;
   }
 
@@ -63,5 +66,40 @@ class AuthService {
       if (res.statusCode == 200) return base64Encode(res.bodyBytes);
     } catch (_) {}
     return null;
+  }
+
+  Future<void> syncBirthdaysFromBackend(UserSession session) async {
+    final remote = await ApiService.instance.getBirthdays(session.laravelToken);
+    final parsed = remote
+        .whereType<Map<String, dynamic>>()
+        .map(_birthdayFromApi)
+        .toList();
+
+    await DatabaseHelper.instance.replaceBirthdaysForOwner(
+      ownerUserId: session.laravelUserId,
+      birthdays: parsed,
+    );
+  }
+
+  Birthday _birthdayFromApi(Map<String, dynamic> map) {
+    final birthDay = (map['birth_day'] as num?)?.toInt() ?? 1;
+    final birthMonth = (map['birth_month'] as num?)?.toInt() ?? 1;
+    final birthYear = (map['birth_year'] as num?)?.toInt();
+    final isSelfRaw = map['is_self'];
+    final isSelf = isSelfRaw == true || isSelfRaw == 1;
+    final backendId = (map['id'] as num?)?.toInt();
+
+    return Birthday(
+      backendBirthdayId: backendId,
+      name: (map['name'] as String? ?? '').trim(),
+      birthDay: birthDay,
+      birthMonth: birthMonth,
+      birthYear: birthYear,
+      gender: map['gender'] as String?,
+      interests: map['interests'] as String?,
+      notes: map['notes'] as String?,
+      isSelf: isSelf,
+      createdAt: (map['created_at'] as String?) ?? DateTime.now().toIso8601String(),
+    );
   }
 }

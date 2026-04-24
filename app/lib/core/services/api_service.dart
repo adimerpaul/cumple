@@ -100,11 +100,37 @@ class ApiService {
     return data['birthdays'] as List<dynamic>;
   }
 
-  Future<Map<String, dynamic>> getSelfBirthdayShareLink(String token) async {
+  Future<Map<String, dynamic>> createSelfBirthdayShareCode(String token) async {
+    final res = await http
+        .post(
+          Uri.parse('$_base/share-codes/self'),
+          headers: _headers(token: token),
+        )
+        .timeout(_timeout);
+    _check(res);
+    return jsonDecode(res.body) as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> createBirthdayListShareCode({
+    required String token,
+    required List<Map<String, dynamic>> birthdays,
+  }) async {
+    final res = await http
+        .post(
+          Uri.parse('$_base/share-codes/list'),
+          headers: _headers(token: token),
+          body: jsonEncode({'birthdays': birthdays}),
+        )
+        .timeout(_timeout);
+    _check(res);
+    return jsonDecode(res.body) as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> resolveShareCode(String code) async {
     final res = await http
         .get(
-          Uri.parse('$_base/birthdays/self/share-link'),
-          headers: _headers(token: token),
+          Uri.parse('$_base/share-codes/$code'),
+          headers: _headers(),
         )
         .timeout(_timeout);
     _check(res);
